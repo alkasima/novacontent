@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PostMint — Turn Any Video Into Your Original Posts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;0,9..144,900;1,9..144,300;1,9..144,700&family=DM+Mono:wght@300;400;500&family=Cabinet+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060608;
+  --surface:#0e0e12;
+  --surface2:#16161c;
+  --border:#1f1f28;
+  --border2:#2a2a38;
+  --accent:#c8f53d;
+  --accent-dim:#9ab82e;
+  --accent-glow:rgba(200,245,61,0.15);
+  --purple:#9b6dff;
+  --pink:#ff6db3;
+  --text:#f0f0f5;
+  --text2:#9090a8;
+  --text3:#5a5a72;
+  --white:#ffffff;
+}
+
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-serif;overflow-x:hidden;cursor:none;}
+
+/* Custom cursor */
+.cursor{position:fixed;width:12px;height:12px;background:var(--accent);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform .1s,width .2s,height .2s,background .2s;mix-blend-mode:difference;}
+.cursor-ring{position:fixed;width:36px;height:36px;border:1px solid rgba(200,245,61,.4);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:transform .15s ease-out,width .3s,height .3s,opacity .3s;}
+.cursor.hover{width:20px;height:20px;}
+.cursor-ring.hover{width:56px;height:56px;opacity:.6;}
+
+/* Noise overlay */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1;opacity:.5;}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:72px;border-bottom:1px solid transparent;transition:border-color .4s,background .4s;}
+nav.scrolled{background:rgba(6,6,8,.9);border-color:var(--border);backdrop-filter:blur(16px);}
+.nav-logo{font-family:'Fraunces',serif;font-size:22px;font-weight:900;color:var(--white);letter-spacing:-.02em;display:flex;align-items:center;gap:8px;}
+.nav-logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;animation:dotpulse 2.5s ease-in-out infinite;}
+@keyframes dotpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+.nav-links{display:flex;align-items:center;gap:36px;}
+.nav-links a{font-size:14px;color:var(--text2);text-decoration:none;font-weight:500;letter-spacing:.01em;transition:color .2s;}
+.nav-links a:hover{color:var(--text);}
+.nav-cta{background:var(--accent);color:#000;font-size:13.5px;font-weight:800;padding:10px 22px;border-radius:100px;text-decoration:none;letter-spacing:.02em;transition:transform .2s,box-shadow .2s;box-shadow:0 0 0 rgba(200,245,61,0);}
+.nav-cta:hover{transform:translateY(-1px);box-shadow:0 8px 32px rgba(200,245,61,.3);}
+
+/* Hero */
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:120px 5% 80px;text-align:center;overflow:hidden;}
+.hero-bg{position:absolute;inset:0;pointer-events:none;}
+.hero-glow1{position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(155,109,255,.12) 0%,transparent 70%);top:-200px;left:-100px;animation:glowdrift1 18s ease-in-out infinite;}
+.hero-glow2{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(200,245,61,.08) 0%,transparent 70%);bottom:-100px;right:-50px;animation:glowdrift2 14s ease-in-out infinite;}
+.hero-glow3{position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(255,109,179,.07) 0%,transparent 70%);top:50%;left:55%;animation:glowdrift3 20s ease-in-out infinite;}
+@keyframes glowdrift1{0%,100%{transform:translate(0,0)}50%{transform:translate(60px,40px)}}
+@keyframes glowdrift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-50px,-60px)}}
+@keyframes glowdrift3{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-44%,-56%)}}
+
+.hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(200,245,61,.08);border:1px solid rgba(200,245,61,.2);border-radius:100px;padding:7px 16px;margin-bottom:36px;font-family:'DM Mono',monospace;font-size:11.5px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;animation:fadein .8s ease both;}
+@keyframes fadein{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.hero-tag-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:dotpulse 2s infinite;}
+
+h1.hero-title{font-family:'Fraunces',serif;font-size:clamp(48px,8vw,96px);font-weight:900;line-height:.95;letter-spacing:-.04em;margin-bottom:32px;animation:fadein .8s .1s ease both;opacity:0;}
+.hero-title span.accent{color:var(--accent);}
+.hero-title span.italic{font-style:italic;font-weight:300;color:var(--text2);}
+
+.hero-sub{font-size:clamp(16px,2vw,20px);color:var(--text2);max-width:580px;margin:0 auto 48px;line-height:1.65;font-weight:400;animation:fadein .8s .2s ease both;opacity:0;}
+.hero-sub strong{color:var(--text);font-weight:700;}
+
+.hero-actions{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;animation:fadein .8s .3s ease both;opacity:0;}
+.btn-hero{background:var(--accent);color:#000;font-size:15px;font-weight:800;padding:16px 36px;border-radius:100px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:transform .2s,box-shadow .2s;box-shadow:0 0 40px rgba(200,245,61,.2);}
+.btn-hero:hover{transform:translateY(-2px);box-shadow:0 12px 48px rgba(200,245,61,.35);}
+.btn-ghost{background:transparent;color:var(--text2);font-size:15px;font-weight:600;padding:16px 32px;border-radius:100px;text-decoration:none;border:1px solid var(--border2);display:inline-flex;align-items:center;gap:8px;transition:all .2s;}
+.btn-ghost:hover{border-color:var(--text3);color:var(--text);}
+
+.hero-social-proof{margin-top:56px;display:flex;align-items:center;justify-content:center;gap:20px;animation:fadein .8s .4s ease both;opacity:0;}
+.hero-avatars{display:flex;}
+.hero-avatars span{width:32px;height:32px;border-radius:50%;border:2px solid var(--bg);margin-left:-8px;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--surface2);}
+.hero-avatars span:first-child{margin-left:0;}
+.hero-proof-text{font-size:13.5px;color:var(--text2);}
+.hero-proof-text strong{color:var(--text);}
+
+/* Demo window */
+.demo-wrap{width:100%;max-width:940px;margin:72px auto 0;padding:0 5%;animation:fadein .8s .5s ease both;opacity:0;}
+.demo-window{background:var(--surface);border:1px solid var(--border2);border-radius:20px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04);}
+.demo-bar{background:var(--surface2);padding:14px 18px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+.demo-dot{width:11px;height:11px;border-radius:50%;}
+.demo-dot.r{background:#ff5f57;}.demo-dot.y{background:#febc2e;}.demo-dot.g{background:#28c840;}
+.demo-url{margin-left:10px;background:var(--bg);border-radius:6px;padding:5px 14px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);flex:1;max-width:420px;}
+.demo-body{padding:28px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.demo-card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden;}
+.demo-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.demo-card.x::before{background:linear-gradient(90deg,#1d9bf0,#1565c0);}
+.demo-card.fb::before{background:linear-gradient(90deg,#1877f2,#0d47a1);}
+.demo-card.li::before{background:linear-gradient(90deg,#0a66c2,#1a237e);}
+.demo-plat{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.demo-plat-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+.demo-plat-icon.x{background:rgba(29,155,240,.15);color:#1d9bf0;}
+.demo-plat-icon.fb{background:rgba(24,119,242,.15);color:#1877f2;}
+.demo-plat-icon.li{background:rgba(10,102,194,.15);color:#0a66c2;}
+.demo-plat-name{font-size:12px;font-weight:700;color:var(--text);}
+.demo-plat-tag{font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);margin-left:auto;}
+.demo-text{font-size:12px;color:var(--text2);line-height:1.7;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;}
+.demo-typing{display:inline-block;width:2px;height:12px;background:var(--accent);animation:blink .8s infinite;vertical-align:middle;margin-left:2px;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* Marquee */
+.marquee-wrap{padding:40px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;position:relative;}
+.marquee-wrap::before,.marquee-wrap::after{content:'';position:absolute;top:0;bottom:0;width:120px;z-index:2;}
+.marquee-wrap::before{left:0;background:linear-gradient(90deg,var(--bg),transparent);}
+.marquee-wrap::after{right:0;background:linear-gradient(-90deg,var(--bg),transparent);}
+.marquee-track{display:flex;gap:0;animation:marquee 30s linear infinite;width:max-content;}
+.marquee-item{display:flex;align-items:center;gap:12px;padding:0 40px;white-space:nowrap;font-size:14px;color:var(--text3);font-weight:500;}
+.marquee-item span{color:var(--accent);font-size:18px;}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* Section layout */
+section{padding:100px 5%;}
+.section-tag{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.15em;margin-bottom:16px;display:block;}
+.section-title{font-family:'Fraunces',serif;font-size:clamp(36px,5vw,56px);font-weight:900;line-height:1.0;letter-spacing:-.03em;margin-bottom:20px;}
+.section-sub{font-size:17px;color:var(--text2);line-height:1.65;max-width:500px;}
+
+/* How it works */
+.how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:64px;background:var(--border);}
+.how-step{background:var(--bg);padding:48px 36px;position:relative;overflow:hidden;transition:background .3s;}
+.how-step:hover{background:var(--surface);}
+.how-num{font-family:'Fraunces',serif;font-size:80px;font-weight:900;color:var(--border2);line-height:1;margin-bottom:24px;transition:color .3s;}
+.how-step:hover .how-num{color:rgba(200,245,61,.15);}
+.how-icon{font-size:32px;margin-bottom:16px;}
+.how-title{font-size:20px;font-weight:800;margin-bottom:10px;color:var(--text);}
+.how-desc{font-size:14.5px;color:var(--text2);line-height:1.65;}
+
+/* Features bento */
+.bento{display:grid;grid-template-columns:repeat(12,1fr);grid-template-rows:auto;gap:14px;margin-top:64px;}
+.bento-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;position:relative;overflow:hidden;transition:border-color .3s,transform .2s;}
+.bento-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.bento-card.span-4{grid-column:span 4;}
+.bento-card.span-6{grid-column:span 6;}
+.bento-card.span-8{grid-column:span 8;}
+.bento-card.span-12{grid-column:span 12;}
+.bento-icon{font-size:28px;margin-bottom:16px;}
+.bento-title{font-size:18px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.bento-desc{font-size:13.5px;color:var(--text2);line-height:1.6;}
+.bento-card.accent-card{background:var(--accent);border-color:var(--accent);}
+.bento-card.accent-card .bento-title,.bento-card.accent-card .bento-desc{color:#000;}
+.bento-card.accent-card .bento-icon{filter:none;}
+.bento-big-num{font-family:'Fraunces',serif;font-size:64px;font-weight:900;color:var(--accent);line-height:1;margin-bottom:8px;}
+.bento-tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px;}
+.bento-tag{background:var(--surface2);border:1px solid var(--border2);border-radius:100px;padding:5px 12px;font-size:12px;color:var(--text2);}
+.bento-card.accent-card .bento-tag{background:rgba(0,0,0,.15);border-color:rgba(0,0,0,.2);color:#000;}
+
+/* Platform strips */
+.platform-row{display:flex;gap:12px;margin-top:16px;}
+.plat-pill{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:100px;font-size:12.5px;font-weight:700;}
+.plat-pill.x{background:rgba(29,155,240,.1);color:#1d9bf0;border:1px solid rgba(29,155,240,.2);}
+.plat-pill.fb{background:rgba(24,119,242,.1);color:#1877f2;border:1px solid rgba(24,119,242,.2);}
+.plat-pill.li{background:rgba(10,102,194,.1);color:#0a66c2;border:1px solid rgba(10,102,194,.2);}
+
+/* Pricing */
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:64px;align-items:start;}
+.price-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:36px 32px;transition:transform .2s;}
+.price-card:hover{transform:translateY(-4px);}
+.price-card.featured{background:var(--accent);border-color:var(--accent);position:relative;}
+.price-card.featured *{color:#000 !important;}
+.price-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#000;color:var(--accent) !important;font-size:11px;font-weight:800;padding:5px 14px;border-radius:100px;white-space:nowrap;letter-spacing:.06em;text-transform:uppercase;}
+.price-tier{font-family:'DM Mono',monospace;font-size:12px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px;}
+.price-amount{font-family:'Fraunces',serif;font-size:56px;font-weight:900;line-height:1;letter-spacing:-.03em;color:var(--text);margin-bottom:6px;}
+.price-period{font-size:14px;color:var(--text2);margin-bottom:28px;}
+.price-divider{height:1px;background:var(--border);margin-bottom:24px;}
+.price-card.featured .price-divider{background:rgba(0,0,0,.2);}
+.price-feature{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;font-size:14px;color:var(--text2);}
+.price-feature::before{content:'✓';color:var(--accent);font-weight:800;flex-shrink:0;margin-top:1px;}
+.price-card.featured .price-feature::before{color:#000;}
+.price-feature.dim{color:var(--text3);}
+.price-feature.dim::before{content:'–';color:var(--text3);}
+.price-btn{width:100%;padding:14px;border-radius:12px;font-size:14.5px;font-weight:800;border:none;cursor:pointer;margin-top:28px;transition:all .2s;letter-spacing:.02em;}
+.price-btn.dark{background:var(--accent);color:#000;}
+.price-btn.dark:hover{box-shadow:0 8px 24px rgba(200,245,61,.3);}
+.price-btn.outline{background:transparent;color:var(--text);border:1px solid var(--border2);}
+.price-btn.outline:hover{border-color:var(--text2);}
+.price-btn.black{background:#000;color:var(--accent);}
+.price-btn.black:hover{background:#0a0a0a;}
+
+/* Testimonials */
+.testimonials{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:64px;}
+.testi-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;transition:border-color .3s,transform .2s;}
+.testi-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.testi-stars{color:var(--accent);font-size:14px;margin-bottom:16px;letter-spacing:2px;}
+.testi-text{font-size:14.5px;color:var(--text2);line-height:1.7;margin-bottom:20px;font-style:italic;}
+.testi-author{display:flex;align-items:center;gap:12px;}
+.testi-avatar{width:38px;height:38px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.testi-name{font-size:13.5px;font-weight:700;color:var(--text);}
+.testi-role{font-size:12px;color:var(--text3);}
+
+/* CTA section */
+.cta-section{text-align:center;padding:120px 5%;position:relative;overflow:hidden;}
+.cta-glow{position:absolute;width:800px;height:800px;border-radius:50%;background:radial-gradient(circle,rgba(200,245,61,.07) 0%,transparent 60%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;}
+.cta-title{font-family:'Fraunces',serif;font-size:clamp(42px,7vw,80px);font-weight:900;line-height:.95;letter-spacing:-.04em;margin-bottom:24px;}
+.cta-sub{font-size:18px;color:var(--text2);max-width:480px;margin:0 auto 48px;line-height:1.6;}
+.cta-note{font-size:13px;color:var(--text3);margin-top:16px;}
+
+/* Footer */
+footer{border-top:1px solid var(--border);padding:60px 5% 40px;}
+.footer-top{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:48px;}
+.footer-brand{font-family:'Fraunces',serif;font-size:24px;font-weight:900;color:var(--white);margin-bottom:12px;}
+.footer-brand-sub{font-size:13.5px;color:var(--text3);line-height:1.6;max-width:260px;}
+.footer-col-title{font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;}
+.footer-link{display:block;font-size:14px;color:var(--text3);text-decoration:none;margin-bottom:10px;transition:color .2s;}
+.footer-link:hover{color:var(--text);}
+.footer-bottom{display:flex;align-items:center;justify-content:space-between;padding-top:32px;border-top:1px solid var(--border);}
+.footer-copy{font-size:13px;color:var(--text3);}
+.footer-accent{color:var(--accent);}
+
+/* Scroll animations */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease;}
+.reveal.visible{opacity:1;transform:translateY(0);}
+
+/* Responsive */
+@media(max-width:900px){
+  .bento-card.span-4,.bento-card.span-6,.bento-card.span-8{grid-column:span 12;}
+  .how-grid{grid-template-columns:1fr;}
+  .how-grid{gap:0;}
+  .pricing-grid{grid-template-columns:1fr;}
+  .testimonials{grid-template-columns:1fr;}
+  .footer-top{grid-template-columns:1fr 1fr;}
+  .demo-body{grid-template-columns:1fr;}
+  .nav-links{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- Cursor -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- Nav -->
+<nav id="navbar">
+  <div class="nav-logo"><span class="nav-logo-dot"></span>PostMint</div>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#testimonials">Reviews</a>
+  </div>
+  <a href="#pricing" class="nav-cta">Start Free →</a>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-bg">
+    <div class="hero-glow1"></div>
+    <div class="hero-glow2"></div>
+    <div class="hero-glow3"></div>
+  </div>
+  <div class="hero-tag"><span class="hero-tag-dot"></span>AI-Powered Content Repurposing</div>
+  <h1 class="hero-title">
+    Turn any video<br>
+    into <span class="accent">original</span><br>
+    <span class="italic">social posts</span>
+  </h1>
+  <p class="hero-sub">
+    Paste a YouTube or TikTok URL. PostMint extracts the core idea and writes <strong>first-person posts</strong> that sound like <strong>you</strong> — not a video recap.
+  </p>
+  <div class="hero-actions">
+    <a href="#pricing" class="btn-hero">Start for free <span>→</span></a>
+    <a href="#how" class="btn-ghost">See how it works</a>
+  </div>
+  <div class="hero-social-proof">
+    <div class="hero-avatars">
+      <span>🧑</span><span>👩</span><span>🧔</span><span>👨‍💻</span><span>👩‍💼</span>
+    </div>
+    <div class="hero-proof-text"><strong>2,400+</strong> creators repurposing content daily</div>
+  </div>
+
+  <div class="demo-wrap">
+    <div class="demo-window">
+      <div class="demo-bar">
+        <div class="demo-dot r"></div>
+        <div class="demo-dot y"></div>
+        <div class="demo-dot g"></div>
+        <div class="demo-url">youtube.com/watch?v=dQw4w9WgXcQ</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-card x">
+          <div class="demo-plat">
+            <div class="demo-plat-icon x">𝕏</div>
+            <span class="demo-plat-name">X / Twitter</span>
+            <span class="demo-plat-tag">247/280</span>
+          </div>
+          <div class="demo-text" id="demoX">I stopped outsourcing my thinking to algorithms last year. Best decision I made. Here's what happened when I started treating every video I watched as raw material for my own ideas 🧵<span class="demo-typing"></span></div>
+        </div>
+        <div class="demo-card fb">
+          <div class="demo-plat">
+            <div class="demo-plat-icon fb">f</div>
+            <span class="demo-plat-name">Facebook</span>
+            <span class="demo-plat-tag">story</span>
+          </div>
+          <div class="demo-text">Six months ago I was stuck. Watching content all day, learning nothing. Then I changed one habit — and my entire content output flipped. Instead of sharing links, I started writing what I actually learned...</div>
+        </div>
+        <div class="demo-card li">
+          <div class="demo-plat">
+            <div class="demo-plat-icon li">in</div>
+            <span class="demo-plat-name">LinkedIn</span>
+            <span class="demo-plat-tag">thought leader</span>
+          </div>
+          <div class="demo-text">The creators winning in 2025 aren't consuming more content. They're repurposing it faster. I tested this personally over 90 days and the data is clear: original perspective beats shared links every time...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Marquee -->
+<div class="marquee-wrap">
+  <div class="marquee-track" id="marqueeTrack">
+    <div class="marquee-item"><span>⚡</span>Powered by Groq LLaMA3</div>
+    <div class="marquee-item"><span>🎯</span>First-Person Voice</div>
+    <div class="marquee-item"><span>🌍</span>8 Languages</div>
+    <div class="marquee-item"><span>📦</span>Batch 10 Videos at Once</div>
+    <div class="marquee-item"><span>🎨</span>6 Hook Styles</div>
+    <div class="marquee-item"><span>✏️</span>Inline Editing</div>
+    <div class="marquee-item"><span>📊</span>3 Platforms</div>
+    <div class="marquee-item"><span>💾</span>Saved History</div>
+    <div class="marquee-item"><span>🔁</span>Unlimited Rewrites</div>
+    <div class="marquee-item"><span>📤</span>Export to .txt & .md</div>
+    <div class="marquee-item"><span>⚡</span>Powered by Groq LLaMA3</div>
+    <div class="marquee-item"><span>🎯</span>First-Person Voice</div>
+    <div class="marquee-item"><span>🌍</span>8 Languages</div>
+    <div class="marquee-item"><span>📦</span>Batch 10 Videos at Once</div>
+    <div class="marquee-item"><span>🎨</span>6 Hook Styles</div>
+    <div class="marquee-item"><span>✏️</span>Inline Editing</div>
+    <div class="marquee-item"><span>📊</span>3 Platforms</div>
+    <div class="marquee-item"><span>💾</span>Saved History</div>
+    <div class="marquee-item"><span>🔁</span>Unlimited Rewrites</div>
+    <div class="marquee-item"><span>📤</span>Export to .txt & .md</div>
+  </div>
+</div>
+
+<!-- How it works -->
+<section id="how">
+  <div style="max-width:1200px;margin:0 auto;">
+    <span class="section-tag reveal">How it works</span>
+    <h2 class="section-title reveal">Three steps.<br><span style="color:var(--text2);font-style:italic;font-weight:300;">Zero fluff.</span></h2>
+    <div class="how-grid reveal">
+      <div class="how-step">
+        <div class="how-num">01</div>
+        <div class="how-icon">🔗</div>
+        <div class="how-title">Paste your URL</div>
+        <div class="how-desc">Drop any YouTube or TikTok link. Or paste a transcript, article, or notes directly. PostMint fetches the video title automatically.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">02</div>
+        <div class="how-icon">🧠</div>
+        <div class="how-title">AI extracts the idea</div>
+        <div class="how-desc">PostMint pulls out the core insight and hook style from the opening seconds. You can review and edit the idea before generating.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">03</div>
+        <div class="how-icon">✍️</div>
+        <div class="how-title">Get original posts</div>
+        <div class="how-desc">Receive first-person posts for X, Facebook, and LinkedIn — written as if you experienced this yourself. No video credits. No recaps. Just your voice.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features Bento -->
+<section id="features" style="padding-top:0;">
+  <div style="max-width:1200px;margin:0 auto;">
+    <span class="section-tag reveal">Features</span>
+    <h2 class="section-title reveal">Everything you need.<br><span style="color:var(--text2);font-style:italic;font-weight:300;">Nothing you don&#39;t.</span></h2>
+    <p class="section-sub reveal">Built for creators who need speed, originality, and control over their content voice.</p>
+
+    <div class="bento reveal">
+      <div class="bento-card span-6 accent-card">
+        <div class="bento-icon">🎯</div>
+        <div class="bento-title">First-Person AI Writing</div>
+        <div class="bento-desc">Every post reads like your own experience. PostMint never says "watch this video" — it writes as if you personally discovered the insight.</div>
+        <div class="bento-tag-row">
+          <div class="bento-tag">Your voice</div>
+          <div class="bento-tag">No recaps</div>
+          <div class="bento-tag">Original content</div>
+        </div>
+      </div>
+
+      <div class="bento-card span-6">
+        <div class="bento-icon">⚡</div>
+        <div class="bento-title">Ultra-Fast with Groq</div>
+        <div class="bento-desc">Powered by Groq's LLaMA3-70B — the fastest AI inference in the world. Posts generate in under 3 seconds.</div>
+        <div class="bento-big-num">3s</div>
+        <div class="bento-desc" style="margin-top:-8px;">Average generation time</div>
+      </div>
+
+      <div class="bento-card span-4">
+        <div class="bento-icon">🌍</div>
+        <div class="bento-title">8 Languages</div>
+        <div class="bento-desc">Generate posts in English, Spanish, French, Portuguese, Arabic, Hindi, German, or Pidgin English.</div>
+      </div>
+
+      <div class="bento-card span-4">
+        <div class="bento-icon">📦</div>
+        <div class="bento-title">Batch Mode</div>
+        <div class="bento-desc">Paste up to 10 URLs at once. PostMint processes them all sequentially — one click, entire week of content.</div>
+      </div>
+
+      <div class="bento-card span-4">
+        <div class="bento-icon">🔀</div>
+        <div class="bento-title">3 Variations</div>
+        <div class="bento-desc">Generate up to 3 different versions per platform. Click any variation to swap it in instantly.</div>
+      </div>
+
+      <div class="bento-card span-8">
+        <div class="bento-icon">📱</div>
+        <div class="bento-title">3 Platforms, Perfect Format</div>
+        <div class="bento-desc">Each platform gets purpose-built content. Not the same post copy-pasted.</div>
+        <div class="platform-row" style="margin-top:20px;">
+          <div class="plat-pill x">𝕏 Hook-first · 280 chars</div>
+          <div class="plat-pill fb">f Story-driven · No hashtags</div>
+          <div class="plat-pill li">in Thought leadership · CTA</div>
+        </div>
+      </div>
+
+      <div class="bento-card span-4">
+        <div class="bento-icon">🎨</div>
+        <div class="bento-title">6 Hook Styles</div>
+        <div class="bento-tag-row" style="margin-top:12px;">
+          <div class="bento-tag">Bold Claim</div>
+          <div class="bento-tag">Shocking Stat</div>
+          <div class="bento-tag">Story Opener</div>
+          <div class="bento-tag">Question</div>
+          <div class="bento-tag">Contrarian</div>
+          <div class="bento-tag">Lesson Learned</div>
+        </div>
+      </div>
+
+      <div class="bento-card span-4">
+        <div class="bento-icon">🏷️</div>
+        <div class="bento-title">8 Niches</div>
+        <div class="bento-tag-row" style="margin-top:12px;">
+          <div class="bento-tag">Marketing</div>
+          <div class="bento-tag">Tech & AI</div>
+          <div class="bento-tag">Finance</div>
+          <div class="bento-tag">Fitness</div>
+          <div class="bento-tag">Entrepreneurship</div>
+          <div class="bento-tag">Education</div>
+        </div>
+      </div>
+
+      <div class="bento-card span-4">
+        <div class="bento-icon">💾</div>
+        <div class="bento-title">History & Export</div>
+        <div class="bento-desc">Save all generations. Load past posts. Export as .txt or .md. Your content, always accessible.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing">
+  <div style="max-width:1100px;margin:0 auto;">
+    <span class="section-tag reveal">Pricing</span>
+    <h2 class="section-title reveal">Simple pricing.<br><span style="color:var(--text2);font-style:italic;font-weight:300;">Cancel anytime.</span></h2>
+    <p class="section-sub reveal">Start free. Upgrade when you're ready. No hidden fees.</p>
+
+    <div class="pricing-grid reveal">
+      <div class="price-card">
+        <div class="price-tier">Free</div>
+        <div class="price-amount">$0</div>
+        <div class="price-period">forever</div>
+        <div class="price-divider"></div>
+        <div class="price-feature">10 generations / month</div>
+        <div class="price-feature">X/Twitter only</div>
+        <div class="price-feature">3 languages</div>
+        <div class="price-feature">Basic history (local)</div>
+        <div class="price-feature dim">No batch mode</div>
+        <div class="price-feature dim">No variations</div>
+        <div class="price-feature dim">No export</div>
+        <button class="price-btn outline">Get started free</button>
+      </div>
+
+      <div class="price-card featured">
+        <div class="price-badge">⭐ MOST POPULAR</div>
+        <div class="price-tier">Pro</div>
+        <div class="price-amount">$19</div>
+        <div class="price-period">per month</div>
+        <div class="price-divider"></div>
+        <div class="price-feature">Unlimited generations</div>
+        <div class="price-feature">All 3 platforms</div>
+        <div class="price-feature">All 8 languages</div>
+        <div class="price-feature">Batch mode (10 URLs)</div>
+        <div class="price-feature">3 variations per platform</div>
+        <div class="price-feature">Cloud history (unlimited)</div>
+        <div class="price-feature">Export .txt & .md</div>
+        <div class="price-feature">Priority support</div>
+        <button class="price-btn black">Start Pro — $19/mo</button>
+      </div>
+
+      <div class="price-card">
+        <div class="price-tier">Agency</div>
+        <div class="price-amount">$49</div>
+        <div class="price-period">per month</div>
+        <div class="price-divider"></div>
+        <div class="price-feature">Everything in Pro</div>
+        <div class="price-feature">5 team members</div>
+        <div class="price-feature">Unlimited brand profiles</div>
+        <div class="price-feature">Client workspaces</div>
+        <div class="price-feature">Approval workflow</div>
+        <div class="price-feature">API access</div>
+        <div class="price-feature">White-label option</div>
+        <div class="price-feature">Dedicated support</div>
+        <button class="price-btn outline">Start Agency — $49/mo</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section id="testimonials">
+  <div style="max-width:1100px;margin:0 auto;">
+    <span class="section-tag reveal">Testimonials</span>
+    <h2 class="section-title reveal">Creators love it.</h2>
+    <div class="testimonials reveal">
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-text">"I used to spend 45 minutes writing LinkedIn posts. Now PostMint gives me 3 options in 3 seconds and I just pick the best one. My engagement doubled in the first month."</div>
+        <div class="testi-author">
+          <div class="testi-avatar">👨‍💻</div>
+          <div>
+            <div class="testi-name">David K.</div>
+            <div class="testi-role">Tech Educator · 28K LinkedIn followers</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-text">"The 'first-person' angle is genius. My audience actually thinks I'm sharing my own experiences — because PostMint makes it sound exactly like me. This is the tool I didn't know I needed."</div>
+        <div class="testi-author">
+          <div class="testi-avatar">👩</div>
+          <div>
+            <div class="testi-name">Amira S.</div>
+            <div class="testi-role">Marketing Consultant · Lagos</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-text">"As an agency we manage 8 clients. The batch mode alone saves us 6+ hours per week. We batch all client videos on Monday and have a full week of posts ready by lunch."</div>
+        <div class="testi-author">
+          <div class="testi-avatar">🧔</div>
+          <div>
+            <div class="testi-name">Marcus T.</div>
+            <div class="testi-role">Social Media Agency Owner</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="cta-glow"></div>
+  <div class="reveal">
+    <h2 class="cta-title">Your ideas.<br><span style="color:var(--accent);">Your voice.</span><br>Published.</h2>
+    <p class="cta-sub">Join 2,400+ creators turning their content consumption into original posts that build real audiences.</p>
+    <a href="#pricing" class="btn-hero" style="font-size:17px;padding:18px 44px;">Start for free — no card needed</a>
+    <div class="cta-note">Free plan includes 10 generations/month · Upgrade anytime</div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div style="max-width:1200px;margin:0 auto;">
+    <div class="footer-top">
+      <div>
+        <div class="footer-brand">PostMint</div>
+        <div class="footer-brand-sub">Turn any video into original social posts that sound like you — not a recap.</div>
+      </div>
+      <div>
+        <div class="footer-col-title">Product</div>
+        <a href="#how" class="footer-link">How it works</a>
+        <a href="#features" class="footer-link">Features</a>
+        <a href="#pricing" class="footer-link">Pricing</a>
+        <a href="#" class="footer-link">Changelog</a>
+      </div>
+      <div>
+        <div class="footer-col-title">Company</div>
+        <a href="#" class="footer-link">About</a>
+        <a href="#" class="footer-link">Blog</a>
+        <a href="#" class="footer-link">Affiliates</a>
+        <a href="#" class="footer-link">Contact</a>
+      </div>
+      <div>
+        <div class="footer-col-title">Legal</div>
+        <a href="#" class="footer-link">Privacy Policy</a>
+        <a href="#" class="footer-link">Terms of Service</a>
+        <a href="#" class="footer-link">Cookie Policy</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2025 <span class="footer-accent">PostMint</span>. All rights reserved.</div>
+      <div class="footer-copy">Made with ❤️ for creators worldwide</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Cursor
+var cursor = document.getElementById('cursor');
+var ring   = document.getElementById('cursorRing');
+var mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',function(e){
+  mx=e.clientX; my=e.clientY;
+  cursor.style.left=mx+'px'; cursor.style.top=my+'px';
+});
+function animateRing(){
+  rx+=(mx-rx)*.12; ry+=(my-ry)*.12;
+  ring.style.left=rx+'px'; ring.style.top=ry+'px';
+  requestAnimationFrame(animateRing);
+}
+animateRing();
+document.querySelectorAll('a,button,.bento-card,.testi-card,.price-card,.how-step').forEach(function(el){
+  el.addEventListener('mouseenter',function(){ cursor.classList.add('hover'); ring.classList.add('hover'); });
+  el.addEventListener('mouseleave',function(){ cursor.classList.remove('hover'); ring.classList.remove('hover'); });
+});
+
+// Navbar scroll
+var navbar=document.getElementById('navbar');
+window.addEventListener('scroll',function(){ navbar.classList.toggle('scrolled',window.scrollY>40); });
+
+// Scroll reveal
+var revealEls=document.querySelectorAll('.reveal');
+var observer=new IntersectionObserver(function(entries){
+  entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('visible'); observer.unobserve(e.target); } });
+},{threshold:.12});
+revealEls.forEach(function(el){ observer.observe(el); });
+
+// Typing animation for demo
+var phrases=[
+  "I stopped outsourcing my thinking to algorithms last year. Best decision I made. Here is what happened when I started treating every video I watched as raw material for my own ideas.",
+  "Most people watch 2 hours of content and remember nothing. I changed one habit and turned my passive consumption into active publishing. The result? 10x more reach in 90 days.",
+  "Unpopular opinion: the best content is not original research. It is connecting ideas everyone else already knows but nobody is saying out loud. I learned that the hard way."
+];
+var pi=0,ci=0,typing=true,delaying=false;
+var demoEl=document.getElementById('demoX');
+var typingCursor='<span class="demo-typing"></span>';
+function typeLoop(){
+  if(delaying){return;}
+  var phrase=phrases[pi];
+  if(typing){
+    if(ci<phrase.length){
+      ci++;
+      demoEl.innerHTML=phrase.substring(0,ci)+typingCursor;
+      setTimeout(typeLoop,22);
+    } else {
+      delaying=true;
+      setTimeout(function(){ typing=false; delaying=false; typeLoop(); },2200);
+    }
+  } else {
+    if(ci>0){
+      ci=ci-3;
+      if(ci<0){ci=0;}
+      demoEl.innerHTML=phrase.substring(0,ci)+typingCursor;
+      setTimeout(typeLoop,8);
+    } else {
+      pi=(pi+1)%phrases.length;
+      typing=true;
+      delaying=true;
+      setTimeout(function(){ delaying=false; typeLoop(); },400);
+    }
+  }
+}
+setTimeout(typeLoop,1200);
+
+// Smooth scroll
+var allLinks=document.querySelectorAll('a');
+allLinks.forEach(function(a){
+  var href=a.getAttribute('href');
+  if(href && href.charAt(0)==='#' && href.length>1){
+    a.addEventListener('click',function(e){
+      var target=document.querySelector(href);
+      if(target){
+        e.preventDefault();
+        target.scrollIntoView({behavior:'smooth',block:'start'});
+      }
+    });
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ContentForge — Video Repurposer</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+  <div class="orbs">
+    <div class="orb o1"></div>
+    <div class="orb o2"></div>
+    <div class="orb o3"></div>
+  </div>
+
+  <div class="app">
+    <nav class="sidebar">
+      <div class="logo"><div class="logo-dot"></div>ContentForge</div>
+      <div class="nav-section">Create</div>
+      <button class="nav-btn active" data-page="generate"><span class="nav-icon">⚡</span>Generate</button>
+      <button class="nav-btn" data-page="batch"><span class="nav-icon">📦</span>Batch Mode</button>
+      <div class="nav-section">Manage</div>
+      <button class="nav-btn" data-page="calendar"><span class="nav-icon">📅</span>Calendar <span class="history-count" id="scheduledCount">0</span></button>
+      <button class="nav-btn" data-page="history"><span class="nav-icon">🕒</span>History <span class="history-count" id="histCount">0</span></button>
+      <div class="nav-section">Account</div>
+      <button class="nav-btn" data-page="settings"><span class="nav-icon">⚙️</span>Settings</button>
+    </nav>
+
+    <main class="main">
+      <div class="mobile-nav">
+        <button class="mob-btn active" data-page="generate">⚡ Generate</button>
+        <button class="mob-btn" data-page="batch">📦 Batch</button>
+        <button class="mob-btn" data-page="calendar">📅 Calendar</button>
+        <button class="mob-btn" data-page="history">🕒 History</button>
+        <button class="mob-btn" data-page="settings">⚙️ Settings</button>
+      </div>
+
+      <!-- PAGE: GENERATE -->
+      <div class="page active" id="page-generate">
+        <header>
+          <div class="badge"><div class="pulse"></div>Powered by Groq · Free</div>
+          <h1>Turn Videos Into<br>Your Own Original Posts</h1>
+          <p class="sub">Extract the idea. Write first-person content that sounds like you — not a recap.</p>
+        </header>
+
+        <div class="api-tip">
+          ⚡ <strong>Free Groq API key required.</strong>
+          Get yours at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> — no credit card needed. Key starts with <code>gsk_</code>
+        </div>
+        <div id="usageBar" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:13px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="color:var(--muted);">Plan: <strong id="tierLabel" style="color:var(--accent3);">Free</strong></span>
+            <span style="color:var(--muted);">Remaining: <strong id="remainingLabel" style="color:var(--accent);">15</strong></span>
+          </div>
+          <div style="background:var(--surface3);border-radius:6px;height:6px;overflow:hidden;">
+            <div id="usageProgress" style="background:linear-gradient(90deg,var(--accent),var(--accent2));height:100%;width:0%;border-radius:6px;transition:width .3s;"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Groq API Key</div>
+          <div class="input-row">
+            <input type="password" id="apiKey" placeholder="gsk_..."/>
+            <button class="eye-btn" id="eyeBtn">👁</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Content Source <span class="card-title-badge">Step 1</span></div>
+          <div class="src-tabs">
+            <div class="src-tab active" data-src="url">🔗 Video URL</div>
+            <div class="src-tab" data-src="text">📝 Paste Text</div>
+          </div>
+          <div class="src-panel active" id="src-url">
+            <input type="url" id="urlInput" placeholder="https://youtube.com/watch?v=...  or  https://tiktok.com/..."/>
+            <p class="hint" style="margin-top:9px;">Paste the <strong>opening transcript</strong> below for a better hook (optional but recommended):</p>
+            <textarea id="transcript" rows="3" placeholder="Opening transcript / key quotes from the first 30–60 seconds..." style="margin-top:8px;"></textarea>
+          </div>
+          <div class="src-panel" id="src-text">
+            <textarea id="textInput" rows="6" placeholder="Paste any text — blog post, tweet, article, transcript, notes — to repurpose into social posts..."></textarea>
+          </div>
+
+          <div class="topic-preview" id="topicPreview">
+            <div class="tp-label">📌 Extracted Core Idea</div>
+            <div class="tp-content" id="topicContent"></div>
+            <span class="tp-edit" id="topicEditBtn">✏️ Edit this idea</span>
+          </div>
+          <textarea id="topicEdit" rows="2" placeholder="Edit the core idea here..." style="display:none;margin-top:8px;"></textarea>
+
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button class="btn-secondary" id="extractBtn">🔍 Extract Core Idea First</button>
+            <button class="btn-primary" id="genBtn">⚡ Generate Posts</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Output Settings <span class="card-title-badge">Step 2</span></div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+
+            <div>
+              <div class="field-label">Platforms</div>
+              <div class="chip-group">
+                <div class="chip plat-chip active" data-plat="x">𝕏 X / Twitter</div>
+                <div class="chip plat-chip active" data-plat="fb">f Facebook</div>
+                <div class="chip plat-chip active" data-plat="li">in LinkedIn</div>
+                <div class="chip plat-chip" data-plat="ig">📷 Instagram</div>
+                <div class="chip plat-chip" data-plat="tt">🎵 TikTok</div>
+                <div class="chip plat-chip" data-plat="th">🧵 Threads</div>
+                <div class="chip plat-chip" data-plat="yt">▶️ YouTube Shorts</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="field-label">Your Niche</div>
+              <div class="chip-group" id="nicheGroup">
+                <div class="chip niche-chip active" data-niche="General">General</div>
+                <div class="chip niche-chip" data-niche="Marketing">Marketing</div>
+                <div class="chip niche-chip" data-niche="Tech & AI">Tech & AI</div>
+                <div class="chip niche-chip" data-niche="Finance">Finance</div>
+                <div class="chip niche-chip" data-niche="Fitness & Health">Fitness</div>
+                <div class="chip niche-chip" data-niche="Entrepreneurship">Entrepreneurship</div>
+                <div class="chip niche-chip" data-niche="Personal Development">Self-Dev</div>
+                <div class="chip niche-chip" data-niche="Education">Education</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="field-label">Hook Style</div>
+              <div class="chip-group" id="hookGroup">
+                <div class="chip hook-chip active" data-hook="Bold claim">Bold Claim</div>
+                <div class="chip hook-chip" data-hook="Shocking stat or fact">Shocking Stat</div>
+                <div class="chip hook-chip" data-hook="Personal story opener">Story Opener</div>
+                <div class="chip hook-chip" data-hook="Provocative question">Question</div>
+                <div class="chip hook-chip" data-hook="Contrarian take">Contrarian</div>
+                <div class="chip hook-chip" data-hook="Lesson learned">Lesson Learned</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="field-label">Writing Style</div>
+              <div class="chip-group" id="toneGroup">
+                <div class="chip tone-chip active" data-tone="raw and honest">Raw & Honest</div>
+                <div class="chip tone-chip" data-tone="inspiring">Inspiring</div>
+                <div class="chip tone-chip" data-tone="insightful">Insightful</div>
+                <div class="chip tone-chip" data-tone="bold and contrarian">Bold</div>
+                <div class="chip tone-chip" data-tone="practical and actionable">Practical</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="field-label">Output Language</div>
+              <div class="chip-group" id="langGroup">
+                <div class="chip lang-chip active" data-lang="English">English</div>
+                <div class="chip lang-chip" data-lang="Spanish">Spanish</div>
+                <div class="chip lang-chip" data-lang="French">French</div>
+                <div class="chip lang-chip" data-lang="Portuguese">Portuguese</div>
+                <div class="chip lang-chip" data-lang="Arabic">Arabic</div>
+                <div class="chip lang-chip" data-lang="Hindi">Hindi</div>
+                <div class="chip lang-chip" data-lang="German">German</div>
+                <div class="chip lang-chip" data-lang="Pidgin English">Pidgin</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="field-label">Custom CTA (optional)</div>
+              <input type="text" id="ctaInput" placeholder="e.g. Follow me for daily tips, DM me 'AI' to get my free guide..."/>
+            </div>
+
+            <div class="grid-2">
+              <div>
+                <div class="field-label">Post Length</div>
+                <div class="slider-row">
+                  <span class="slider-label">Short</span>
+                  <input type="range" id="lengthSlider" min="1" max="3" value="2" step="1"/>
+                  <span class="slider-label" style="text-align:left">Long</span>
+                  <span class="slider-val" id="lengthVal">Medium</span>
+                </div>
+              </div>
+              <div>
+                <div class="field-label">Variations per platform</div>
+                <div class="slider-row">
+                  <span class="slider-label">1</span>
+                  <input type="range" id="varSlider" min="1" max="3" value="1" step="1"/>
+                  <span class="slider-label" style="text-align:left">3</span>
+                  <span class="slider-val" id="varVal">1</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="stbar" id="stBar"><div class="spin"></div><span id="stMsg">Generating…</span></div>
+        <div class="erbar" id="erBar"><span>⚠️</span><span id="erMsg"></span></div>
+
+        <div id="resultsWrap" style="display:none;">
+          <div class="result-header-row">
+            <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--text);">Your Posts</div>
+            <div class="result-actions">
+              <button class="btn-secondary" id="hashtagBtn">#️⃣ Hashtags</button>
+              <button class="btn-secondary" id="saveHistBtn">💾 Save</button>
+              <button class="btn-secondary" id="scheduleBtn">📅 Schedule</button>
+              <button class="btn-secondary" id="exportBtn">📤 Export</button>
+            </div>
+          </div>
+          <div class="results" id="results"></div>
+        </div>
+        <div class="hashtags-panel" id="hashtagsPanel" style="display:none;margin-top:16px;">
+          <div class="card-title">Suggested Hashtags</div>
+          <div class="hashtag-suggestions" id="hashtagSuggestions"></div>
+          <button class="btn-secondary" id="copyHashtags" style="margin-top:10px;">📋 Copy All Hashtags</button>
+        </div>
+      </div>
+
+      <!-- PAGE: BATCH -->
+      <div class="page" id="page-batch">
+        <header>
+          <div class="badge"><div class="pulse"></div>Batch Mode</div>
+          <h1>Process Multiple<br>Videos at Once</h1>
+          <p class="sub">Paste up to 10 URLs — generate posts for all of them in one click.</p>
+        </header>
+        <div class="card">
+          <div class="card-title">Groq API Key</div>
+          <div class="input-row">
+            <input type="password" id="batchApiKey" placeholder="gsk_..."/>
+            <button class="eye-btn" id="batchEyeBtn">👁</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">YouTube / TikTok URLs <span class="card-title-badge">One per line</span></div>
+          <textarea class="batch-urls" id="batchUrls" placeholder="https://youtube.com/watch?v=abc
+https://youtube.com/watch?v=def
+https://tiktok.com/..."></textarea>
+          <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+            <div>
+              <div class="field-label">Platforms</div>
+              <div class="chip-group" id="batchPlats">
+                <div class="chip plat-chip active" data-plat="x">𝕏 X</div>
+                <div class="chip plat-chip active" data-plat="fb">f Facebook</div>
+                <div class="chip plat-chip active" data-plat="li">in LinkedIn</div>
+                <div class="chip plat-chip" data-plat="ig">📷 Instagram</div>
+                <div class="chip plat-chip" data-plat="tt">🎵 TikTok</div>
+                <div class="chip plat-chip" data-plat="th">🧵 Threads</div>
+                <div class="chip plat-chip" data-plat="yt">▶️ YouTube Shorts</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn-primary full" id="batchGenBtn" style="margin-top:14px;">📦 Generate All Posts</button>
+        </div>
+        <div class="stbar" id="batchStBar"><div class="spin"></div><span id="batchStMsg">Processing…</span></div>
+        <div class="erbar" id="batchErBar"><span>⚠️</span><span id="batchErMsg"></span></div>
+        <div class="batch-results" id="batchResults"></div>
+      </div>
+
+      <!-- PAGE: CALENDAR -->
+      <div class="page" id="page-calendar">
+        <header>
+          <div class="badge"><div class="pulse"></div>Content Calendar</div>
+          <h1>Schedule Your<br>Social Posts</h1>
+          <p class="sub">Plan and schedule your content ahead of time.</p>
+        </header>
+
+        <div class="calendar-header">
+          <button class="btn-secondary" id="prevMonth">◀</button>
+          <div id="currentMonth" class="calendar-month-label"></div>
+          <button class="btn-secondary" id="nextMonth">▶</button>
+        </div>
+
+        <div class="calendar-grid" id="calendarGrid">
+          <div class="cal-day-header">Sun</div>
+          <div class="cal-day-header">Mon</div>
+          <div class="cal-day-header">Tue</div>
+          <div class="cal-day-header">Wed</div>
+          <div class="cal-day-header">Thu</div>
+          <div class="cal-day-header">Fri</div>
+          <div class="cal-day-header">Sat</div>
+        </div>
+
+        <div class="scheduled-list" id="scheduledList" style="margin-top:24px;">
+          <div class="card-title">📋 Scheduled Posts</div>
+          <div id="scheduledPostsList"></div>
+        </div>
+      </div>
+
+      <!-- PAGE: HISTORY -->
+      <div class="page" id="page-history">
+        <header>
+          <div class="badge"><div class="pulse"></div>Saved Posts</div>
+          <h1>Your History</h1>
+          <p class="sub">All your saved generations — click to load and copy.</p>
+        </header>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button class="btn-danger" id="clearHistBtn">🗑 Clear All History</button>
+        </div>
+        <div class="history-list" id="historyList">
+          <div class="empty-state"><div class="empty-icon">🕒</div><p>No saved posts yet.<br>Generate some content and click <strong>Save to History</strong>.</p></div>
+        </div>
+      </div>
+
+      <!-- PAGE: SETTINGS -->
+      <div class="page" id="page-settings">
+        <header>
+          <div class="badge"><div class="pulse"></div>Settings</div>
+          <h1>Settings</h1>
+          <p class="sub">Manage your API key and preferences.</p>
+        </header>
+        <div class="card">
+          <div class="settings-section">
+            <div class="settings-title">API Configuration</div>
+            <div class="field-label">Saved Groq API Key</div>
+            <div class="input-row" style="margin-bottom:8px;">
+              <input type="password" id="settingsKey" placeholder="gsk_..."/>
+              <button class="eye-btn" id="settingsEyeBtn">👁</button>
+            </div>
+            <button class="btn-primary" id="saveKeyBtn">Save Key</button>
+            <p class="hint" style="margin-top:8px;">Your key is stored locally in your browser only — never sent to any server except Groq.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="settings-section">
+            <div class="settings-title">Default Preferences</div>
+            <div class="settings-row">
+              <div><div class="settings-key">Default Niche</div><div class="settings-desc">Pre-select your niche on load</div></div>
+              <select id="defaultNiche" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;outline:none;">
+                <option>General</option><option>Marketing</option><option>Tech & AI</option>
+                <option>Finance</option><option>Fitness & Health</option><option>Entrepreneurship</option>
+                <option>Personal Development</option><option>Education</option>
+              </select>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-key">Default Language</div><div class="settings-desc">Output language for posts</div></div>
+              <select id="defaultLang" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;outline:none;">
+                <option>English</option><option>Spanish</option><option>French</option>
+                <option>Portuguese</option><option>Arabic</option><option>Hindi</option>
+                <option>German</option><option>Pidgin English</option>
+              </select>
+            </div>
+            <div style="margin-top:14px;">
+              <button class="btn-primary" id="savePrefsBtn">Save Preferences</button>
+            </div>
+          </div>
+        </div>
+        <div class="card" id="subscriptionCard" style="display:none;">
+          <div class="settings-section">
+            <div class="settings-title">Subscription</div>
+            <div class="settings-row">
+              <div><div class="settings-key">Current Plan</div><div class="settings-desc" id="subTierDesc">Free — 15 generations/month</div></div>
+              <span id="subBadge" style="font-size:12px;font-weight:700;color:var(--accent3);background:rgba(52,211,153,.1);padding:4px 10px;border-radius:100px;">Free</span>
+            </div>
+            <div id="upgradeSection">
+              <div class="settings-row" style="margin-top:8px;">
+                <div><div class="settings-key">Pro</div><div class="settings-desc">500 generations/month — $9/mo</div></div>
+                <button class="btn-primary" id="upgradeProBtn" style="padding:8px 16px;font-size:12px;">Upgrade</button>
+              </div>
+              <div class="settings-row">
+                <div><div class="settings-key">Agency</div><div class="settings-desc">Unlimited + team features — $29/mo</div></div>
+                <button class="btn-primary" id="upgradeAgencyBtn" style="padding:8px 16px;font-size:12px;">Upgrade</button>
+              </div>
+            </div>
+            <div id="manageSection" style="display:none;margin-top:12px;">
+              <button class="btn-secondary" id="manageSubBtn">Manage Subscription</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="settings-section">
+            <div class="settings-title">Brand Voice</div>
+            <p class="hint" style="margin-bottom:16px;">Define your brand personality once. The AI will use this for all generated posts.</p>
+
+            <div class="field-label">Brand Name</div>
+            <input type="text" id="brandName" placeholder="e.g. TechFounder, FitnessPro" style="margin-bottom:14px;"/>
+
+            <div class="field-label">Tone</div>
+            <div class="chip-group" id="brandToneGroup" style="margin-bottom:14px;">
+              <div class="chip brand-tone-chip active" data-tone="Professional & authoritative">Professional</div>
+              <div class="chip brand-tone-chip" data-tone="Casual & friendly">Casual</div>
+              <div class="chip brand-tone-chip" data-tone="Witty & humorous">Witty</div>
+              <div class="chip brand-tone-chip" data-tone="Inspirational & motivational">Inspirational</div>
+              <div class="chip brand-tone-chip" data-tone="Direct & no-nonsense">Direct</div>
+              <div class="chip brand-tone-chip" data-tone="Educational & teaching">Educational</div>
+            </div>
+
+            <div class="field-label">Audience</div>
+            <input type="text" id="brandAudience" placeholder="e.g. Startup founders, Gym goers, Marketers" style="margin-bottom:14px;"/>
+
+            <div class="field-label">Example phrases (what you sound like)</div>
+            <textarea id="brandExamples" rows="3" placeholder="e.g. 'Here's the thing', 'Let me break it down', 'Game changer', 'Bottom line:'" style="margin-bottom:14px;"></textarea>
+
+            <div class="field-label">What to AVOID</div>
+            <textarea id="brandAvoid" rows="2" placeholder="e.g. Too technical jargon, Clickbait, Negative tone, Too many emojis"></textarea>
+
+            <div style="margin-top:14px;">
+              <button class="btn-primary" id="saveBrandBtn">Save Brand Voice</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Schedule Modal -->
+  <div class="modal-overlay" id="scheduleModal">
+    <div class="schedule-modal">
+      <div class="schedule-modal-title">📅 Schedule Post</div>
+      <div class="field-label">Select Date</div>
+      <input type="date" class="schedule-date-input" id="scheduleDate"/>
+      <div class="field-label">Select Time</div>
+      <input type="time" class="schedule-date-input" id="scheduleTime" value="09:00"/>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="btn-secondary" id="cancelSchedule" style="flex:1;">Cancel</button>
+        <button class="btn-primary" id="confirmSchedule" style="flex:1;">Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal" style="position:relative;max-width:420px;">
+      <button class="modal-close" id="authClose">✕</button>
+      <div class="modal-title" id="authTitle">Sign In</div>
+      <div class="modal-sub" id="authSub">Welcome back to ContentForge</div>
+      <div id="authForm">
+        <div class="field-label">Email</div>
+        <input type="email" id="authEmail" placeholder="you@example.com" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:14px;margin-bottom:12px;outline:none;"/>
+        <div class="field-label">Password</div>
+        <input type="password" id="authPassword" placeholder="••••••••" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:14px;margin-bottom:16px;outline:none;"/>
+        <button class="btn-primary full" id="authActionBtn" style="margin-bottom:12px;">Sign In</button>
+        <div style="text-align:center;font-size:13px;color:var(--muted);">
+          <span id="authToggleText">Don't have an account?</span>
+          <a href="#" id="authToggleLink" style="color:var(--accent);text-decoration:none;font-weight:600;">Sign up</a>
+        </div>
+        <div id="authError" style="display:none;color:var(--danger);font-size:13px;margin-top:10px;text-align:center;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal" style="position:relative;">
+      <button class="modal-close" id="exportClose">✕</button>
+      <div class="modal-title">Export Posts</div>
+      <div class="modal-sub">Download your generated posts in your preferred format.</div>
+      <div class="export-option">
+        <div><div class="export-name">Plain Text (.txt)</div><div class="export-desc">All posts as simple text file</div></div>
+        <button class="btn-primary" id="exportTxt">Download</button>
+      </div>
+      <div class="export-option">
+        <div><div class="export-name">Markdown (.md)</div><div class="export-desc">Formatted with platform headers</div></div>
+        <button class="btn-primary" id="exportMd">Download</button>
+      </div>
+      <div class="export-option">
+        <div><div class="export-name">Copy All to Clipboard</div><div class="export-desc">All posts copied at once</div></div>
+        <button class="btn-primary" id="exportClip">Copy All</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
