@@ -30,16 +30,37 @@ app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 
 app.use(express.json());
 
-// Serve static files
-app.use(express.static(path.join(__dirname, '..')));
-
+// Clean URL routes (before static middleware)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'login.html'));
+});
+app.get('/app', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'app.html'));
+});
+
+// Redirect .html to clean URLs
+app.get('/login.html', (req, res) => res.redirect(301, '/login'));
+app.get('/app.html', (req, res) => res.redirect(301, '/app'));
+
+// Serve static files
+app.use(express.static(path.join(__dirname, '..')));
 
 // Health
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', env: config.NODE_ENV });
+});
+
+// Public frontend config
+app.get('/api/config', (req, res) => {
+  res.json({
+    supabaseUrl: config.SUPABASE_URL,
+    supabaseAnonKey: config.SUPABASE_ANON_KEY,
+    stripePublishableKey: config.STRIPE_PUBLISHABLE_KEY,
+    appUrl: config.APP_URL
+  });
 });
 
 // Video extraction (auth + usage limit)

@@ -1,21 +1,26 @@
 {
   "name": "contentforge",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Video to social posts repurposer — SaaS",
-  "main": "server/index.js",
+  "private": true,
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.5",
     "dotenv": "^17.4.2",
-    "express": "^4.18.2",
-    "express-rate-limit": "^8.5.2",
-    "helmet": "^8.2.0",
-    "jsonwebtoken": "^9.0.3",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "stripe": "^22.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
   }
 }
