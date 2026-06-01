@@ -18,7 +18,7 @@ export default function Home() {
           const sb = supabaseLib.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { auth: { persistSession: true } });
           const { data } = await sb.auth.getSession();
           if (data.session) {
-            router.push('/dashboard');
+            router.push('/app');
           }
         }
       } catch (e) { /* ignore */ }

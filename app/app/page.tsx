@@ -74,9 +74,12 @@ export default function DashboardPage() {
   const [schedulePlats, setSchedulePlats] = useState<string[]>([]);
   const [scheduleText, setScheduleText] = useState('');
   const [scheduleTitle, setScheduleTitle] = useState('');
+  const [scheduleImage, setScheduleImage] = useState('');
   const [scheduling, setScheduling] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<string | null>(null);
+  const [generatingImage, setGeneratingImage] = useState<string>('');
+  const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({});
 
   // --- Batch state ---
   const [batchUrls, setBatchUrls] = useState('');
@@ -102,6 +105,10 @@ export default function DashboardPage() {
   const [brandAvoid, setBrandAvoid] = useState('');
   const [usage, setUsage] = useState({ tier: 'free', used: 0, limit: 15, remaining: 15 });
   const [settingsMsg, setSettingsMsg] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [cloneSamples, setCloneSamples] = useState('');
+  const [cloning, setCloning] = useState(false);
+  const [cloneError, setCloneError] = useState('');
 
   // --- Auth init ---
   useEffect(() => {
@@ -156,6 +163,15 @@ export default function DashboardPage() {
     loadCloudData();
     loadUsage();
   }, [client, user]);
+
+  // --- Show brand voice onboarding if not set ---
+  useEffect(() => {
+    if (!user) return;
+    const timer = setTimeout(() => {
+      if (!brandName && !brandExamples && !brandAvoid) setShowOnboarding(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [user, brandName, brandExamples, brandAvoid]);
 
   const loadCloudData = async () => {
     try {
@@ -249,23 +265,19 @@ Write in first person as if YOU discovered these insights. Do NOT mention the vi
 Content to repurpose:\n${ideaText}`;
   };
 
-  const callGroq = async (prompt: string, userApiKey: string) => {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const callGroq = async (prompt: string, _userApiKey?: string) => {
+    const token = await getAuthToken(client);
+    const res = await fetch(getAPIBase() + '/api/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + userApiKey },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'system', content: prompt }],
-        temperature: 0.8,
-        max_tokens: 1000,
-      }),
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ prompt, temperature: 0.8, maxTokens: 1000 }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Groq API error: ${res.status}`);
+      throw new Error(err.error || `AI error: ${res.status}`);
     }
     const data = await res.json();
-    return data?.choices?.[0]?.message?.content?.trim() || 'Generation failed';
+    return data?.text?.trim() || 'Generation failed';
   };
 
   const extractIdea = async () => {
@@ -275,7 +287,6 @@ Content to repurpose:\n${ideaText}`;
 
   const extractIdeaFromSource = async () => {
     if (!url && !transcriptInput) { setError('Please enter a URL or paste a transcript'); return ''; }
-    if (!apiKey) { setError('Please enter your Groq API key in Settings'); return ''; }
     setGenerating(true);
     setError('');
     let text = transcriptInput;
@@ -344,7 +355,6 @@ Content to repurpose:\n${ideaText}`;
       }
       return;
     }
-    if (!apiKey) { setError('Please enter your Groq API key'); return; }
     if (selectedPlats.length === 0) { setError('Select at least one platform'); return; }
 
     setGenerating(true);
@@ -436,7 +446,7 @@ Content to repurpose:\n${ideaText}`;
     } catch (e) { console.error(e); }
   };
 
-  const createScheduledPost = async (postData: { title: string; posts: any; platforms: string[]; scheduled_date: string }) => {
+  const createScheduledPost = async (postData: { title: string; posts: any; platforms: string[]; scheduled_date: string; image_url?: string }) => {
     if (!client) return;
     try {
       const token = await getAuthToken(client);
@@ -464,15 +474,27 @@ Content to repurpose:\n${ideaText}`;
     } catch (e: any) { setError(e.message || 'Cancel failed'); }
   };
 
-  const openScheduleModal = (plat: string, text: string) => {
+  const openScheduleModal = (plat: string, text: string, imageUrl?: string) => {
     setSchedulePlats([plat]);
     setScheduleText(text);
     setScheduleTitle(url || textInput.slice(0, 50) || 'Scheduled post');
+    setScheduleImage(imageUrl || '');
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setMinutes(0);
     setScheduleDate(tomorrow.toISOString().slice(0, 16));
     setScheduleOpen(true);
+  };
+
+  const generateImage = async (prompt: string, key: string) => {
+    setGeneratingImage(key);
+    try {
+      const encoded = encodeURIComponent(prompt);
+      const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&seed=${Date.now()}`;
+      setGeneratedImages(prev => ({ ...prev, [key]: imageUrl }));
+    } finally {
+      setGeneratingImage('');
+    }
   };
 
   const doExport = (format: 'txt' | 'md') => {
@@ -579,6 +601,35 @@ Content to repurpose:\n${ideaText}`;
     }
     setSettingsMsg('Brand voice saved!');
     setTimeout(() => setSettingsMsg(''), 2000);
+  };
+
+  const cloneVoice = async () => {
+    if (!cloneSamples.trim()) { setCloneError('Paste at least one post to clone your voice.'); return; }
+    setCloning(true);
+    setCloneError('');
+    try {
+      const token = await getAuthToken(client);
+      const res = await fetch(getAPIBase() + '/api/voice/clone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ samples: cloneSamples }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setCloneError(data.error || 'Failed to clone voice'); return; }
+      setBrandName(data.name || '');
+      setBrandTone(data.tone || 'Professional');
+      setBrandAudience(data.audience || '');
+      setBrandExamples(data.examples || '');
+      setBrandAvoid(data.avoid || '');
+      setShowOnboarding(false);
+      setTimeout(() => {
+        saveBrandVoice();
+        setSettingsMsg('✨ Brand voice cloned and saved!');
+        setTimeout(() => setSettingsMsg(''), 3000);
+      }, 100);
+    } catch (e: any) {
+      setCloneError(e.message || 'Failed to clone voice');
+    } finally { setCloning(false); }
   };
 
   const upgrade = async (priceId: string) => {
@@ -789,11 +840,7 @@ Content to repurpose:\n${ideaText}`;
               </div>
             )}
 
-            {!apiKey && (
-              <div style={{ background: 'rgba(200,245,61,.05)', border: '1px solid rgba(200,245,61,.15)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, fontSize: 13, color: '#c8f53d' }}>
-                ⚡ <strong>Groq API key missing.</strong> Add your key in <span style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={() => setTab('settings')}>Settings</span> — get yours at <a href="https://console.groq.com/keys" target="_blank" style={{ color: '#c8f53d', textDecoration: 'underline' }}>console.groq.com/keys</a>.
-              </div>
-            )}
+
 
             {card(<>Content Source <span style={{ fontSize: 10, fontWeight: 700, color: '#5a5a72', background: '#16161c', padding: '3px 8px', borderRadius: 6 }}>Step 1</span></>, (
               <>
@@ -985,7 +1032,7 @@ Content to repurpose:\n${ideaText}`;
                                   {previewId === copyKey ? '👁️ Hide Preview' : '👁️ Preview'}
                                 </button>
                                 <button
-                                  onClick={() => openScheduleModal(plat, text)}
+                                  onClick={() => openScheduleModal(plat, text, generatedImages[copyKey])}
                                   style={{
                                     padding: '6px 14px', borderRadius: 8, border: '1px solid #1f1f28',
                                     background: '#16161c', color: '#9090a8',
@@ -995,9 +1042,34 @@ Content to repurpose:\n${ideaText}`;
                                 >
                                   📅 Schedule
                                 </button>
+                                {(plat === 'ig' || plat === 'tt') && (
+                                  <button
+                                    onClick={() => generateImage(text, copyKey)}
+                                    disabled={generatingImage === copyKey}
+                                    style={{
+                                      padding: '6px 14px', borderRadius: 8, border: '1px solid #1f1f28',
+                                      background: generatingImage === copyKey ? '#0e0e12' : '#16161c',
+                                      color: generatingImage === copyKey ? '#5a5a72' : '#c8f53d',
+                                      cursor: generatingImage === copyKey ? 'not-allowed' : 'pointer',
+                                      fontSize: 12, fontWeight: 600,
+                                      transition: 'all .2s', opacity: generatingImage === copyKey ? 0.5 : 1,
+                                    }}
+                                  >
+                                    {generatingImage === copyKey ? '⏳ Generating...' : '🖼️ Generate Image'}
+                                  </button>
+                                )}
                               </div>
                             </div>
                             <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.6, background: '#16161c', borderRadius: 12, padding: '14px 16px', border: '1px solid #1f1f28' }}>{text}</div>
+                            {generatedImages[copyKey] && (
+                              <div style={{ marginTop: 12 }}>
+                                <img src={generatedImages[copyKey]} alt="Generated" style={{ width: '100%', maxWidth: 400, borderRadius: 12, border: '1px solid #1f1f28' }} />
+                                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                  <button onClick={() => navigator.clipboard.writeText(generatedImages[copyKey])} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #1f1f28', background: '#16161c', color: '#9090a8', cursor: 'pointer', fontSize: 12 }}>📋 Copy Image URL</button>
+                                  <button onClick={() => setGeneratedImages(prev => { const next = { ...prev }; delete next[copyKey]; return next; })} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #ff6b6b', background: 'transparent', color: '#ff6b6b', cursor: 'pointer', fontSize: 12 }}>🗑 Remove</button>
+                                </div>
+                              </div>
+                            )}
                             {previewId === copyKey && renderPlatformPreview(plat, text)}
                           </div>
                         );
@@ -1191,7 +1263,8 @@ Content to repurpose:\n${ideaText}`;
                                     </div>
                                   </div>
                                   <div style={{ fontSize: 14, color: '#f0f0f5', lineHeight: 1.5, fontWeight: 600, marginBottom: 6 }}>{item.title || 'Scheduled post'}</div>
-                                  <div style={{ fontSize: 12, color: '#9090a8', whiteSpace: 'pre-wrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{typeof item.posts === 'string' ? item.posts.slice(0, 100) : JSON.stringify(item.posts).slice(0, 100)}...</div>
+                                  <div style={{ fontSize: 12, color: '#9090a8', whiteSpace: 'pre-wrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: item.image_url ? 8 : 0 }}>{typeof item.posts === 'string' ? item.posts.slice(0, 100) : JSON.stringify(item.posts).slice(0, 100)}...</div>
+                                  {item.image_url && <img src={item.image_url} alt="Post" style={{ width: '100%', maxWidth: 280, borderRadius: 10, border: '1px solid #1f1f28' }} />}
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
                                   <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, background: item.status === 'published' ? 'rgba(52,211,153,.14)' : 'rgba(200,245,61,.14)', color: item.status === 'published' ? '#34d399' : '#c8f53d' }}>
@@ -1223,18 +1296,6 @@ Content to repurpose:\n${ideaText}`;
             </div>
             <h1 style={{ fontSize: 36, fontWeight: 800, marginBottom: 8 }}>Settings</h1>
             <p style={{ color: '#9090a8', marginBottom: 32 }}>Manage your API key and preferences.</p>
-
-            {card('API Configuration', (
-              <>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#9090a8', marginBottom: 8, textTransform: 'uppercase' }}>Groq API Key</div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  <input type={showKey ? 'text' : 'password'} value={settingsKey} onChange={e => setSettingsKey(e.target.value)} placeholder="gsk_..." style={{ flex: 1, background: '#16161c', border: '1px solid #1f1f28', borderRadius: 12, padding: '12px 14px', color: '#f0f0f5', fontSize: 14, outline: 'none' }} />
-                  <button onClick={() => setShowKey(!showKey)} style={{ background: '#16161c', border: '1px solid #1f1f28', borderRadius: 12, padding: '0 14px', color: '#9090a8', cursor: 'pointer' }}>{showKey ? '🙈' : '👁'}</button>
-                </div>
-                <button onClick={saveSettings} style={{ background: '#c8f53d', color: '#000', border: 'none', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>Save Key</button>
-                <p style={{ fontSize: 12, color: '#5a5a72', marginTop: 8 }}>Stored locally and synced to your account.</p>
-              </>
-            ))}
 
             {card('Default Preferences', (
               <>
@@ -1334,6 +1395,11 @@ Content to repurpose:\n${ideaText}`;
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: '#9090a8', marginBottom: 6, textTransform: 'uppercase' }}>Post Preview</div>
               <div style={{ background: '#16161c', border: '1px solid #1f1f28', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: '#f0f0f5', lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>{scheduleText}</div>
+              {scheduleImage && (
+                <div style={{ marginTop: 8 }}>
+                  <img src={scheduleImage} alt="Post image" style={{ width: '100%', maxWidth: 300, borderRadius: 10, border: '1px solid #1f1f28' }} />
+                </div>
+              )}
             </div>
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: '#9090a8', marginBottom: 6, textTransform: 'uppercase' }}>Date & Time</div>
@@ -1356,7 +1422,7 @@ Content to repurpose:\n${ideaText}`;
                 if (schedulePlats.length === 0) { setError('Select at least one platform'); return; }
                 setScheduling(true);
                 try {
-                  await createScheduledPost({ title: scheduleTitle, posts: scheduleText, platforms: schedulePlats, scheduled_date: new Date(scheduleDate).toISOString() });
+                  await createScheduledPost({ title: scheduleTitle, posts: scheduleText, platforms: schedulePlats, scheduled_date: new Date(scheduleDate).toISOString(), image_url: scheduleImage });
                   setScheduleOpen(false);
                   setError('');
                   setTab('schedule');
@@ -1380,6 +1446,38 @@ Content to repurpose:\n${ideaText}`;
             >
               {scheduling ? '⏳ Scheduling...' : 'Confirm Schedule'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Brand Voice Onboarding */}
+      {showOnboarding && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
+          <div style={{ background: '#0e0e12', border: '1px solid #1f1f28', borderRadius: 24, padding: 36, width: '100%', maxWidth: 520, margin: 20 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, marginBottom: 4 }}>Welcome to PostMint ✨</div>
+            <p style={{ color: '#9090a8', fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>
+              Let's train the AI to write exactly like you. Paste 1-3 of your best posts below and we'll clone your voice in seconds.
+            </p>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#9090a8', marginBottom: 8, textTransform: 'uppercase' }}>Your posts (paste 1-3)</div>
+            <textarea value={cloneSamples} onChange={e => setCloneSamples(e.target.value)} rows={5} placeholder="Paste your X/Twitter posts, LinkedIn updates, or any content you've written..." style={{ width: '100%', background: '#16161c', border: '1px solid #1f1f28', borderRadius: 12, padding: '12px 14px', color: '#f0f0f5', fontSize: 14, outline: 'none', resize: 'vertical', marginBottom: 16 }} />
+            {cloneError && <div style={{ color: '#ff7a7a', fontSize: 13, marginBottom: 12 }}>{cloneError}</div>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={cloneVoice} disabled={cloning} style={{
+                flex: 1, padding: '12px 22px', borderRadius: 12, border: 'none',
+                background: cloning ? '#8aa830' : '#c8f53d', color: '#000',
+                fontSize: 14, fontWeight: 800, cursor: cloning ? 'not-allowed' : 'pointer',
+                opacity: cloning ? 0.6 : 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+                {cloning && <span style={{ display: 'inline-block', width: 16, height: 16, border: '2px solid rgba(0,0,0,.3)', borderTop: '2px solid #000', borderRadius: '50%', animation: 'spin .8s linear infinite' }}></span>}
+                {cloning ? 'Analyzing your voice...' : '✨ Clone my voice'}
+              </button>
+              <button onClick={() => { setShowOnboarding(false); setCloneError(''); }} style={{
+                padding: '12px 18px', borderRadius: 12, border: '1px solid #2a2a38',
+                background: 'transparent', color: '#9090a8', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer',
+              }}>Skip</button>
+            </div>
           </div>
         </div>
       )}

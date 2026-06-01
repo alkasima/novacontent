@@ -19,6 +19,7 @@ export default function DashboardHome() {
   const [usage, setUsage] = useState({ tier: 'free', used: 0, limit: 15, remaining: 15 });
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -59,6 +60,10 @@ export default function DashboardHome() {
         const h = await historyRes.json();
         setHistory(h.slice(0, 5));
       }
+      try {
+        const meRes = await fetch(base + '/api/admin/me', { headers: { Authorization: 'Bearer ' + token } });
+        if (meRes.ok) { const me = await meRes.json(); setIsAdmin(!!me.is_superadmin); }
+      } catch (e) { /* ignore */ }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -103,6 +108,15 @@ export default function DashboardHome() {
           textAlign: 'left', padding: '10px 14px', borderRadius: 12, border: 'none',
           background: 'transparent', color: '#9090a8', cursor: 'pointer', fontSize: 14, fontWeight: 600, textDecoration: 'none', display: 'block'
         }}>⚙️ Settings</Link>
+        {isAdmin && (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#5a5a72', textTransform: 'uppercase', letterSpacing: 1, padding: '8px 14px', marginTop: 8 }}>Admin</div>
+            <Link href="/admin" style={{
+              textAlign: 'left', padding: '10px 14px', borderRadius: 12, border: 'none',
+              background: 'transparent', color: '#c8f53d', cursor: 'pointer', fontSize: 14, fontWeight: 600, textDecoration: 'none', display: 'block'
+            }}>🛡️ AI Providers</Link>
+          </>
+        )}
         <div style={{ marginTop: 'auto' }}>
           <div style={{ fontSize: 12, color: '#5a5a72', marginBottom: 8, padding: '0 14px' }}>{user?.email}</div>
           <button onClick={logout} style={{ width: '100%', padding: '10px', borderRadius: 12, border: '1px solid #1f1f28', background: 'transparent', color: '#9090a8', cursor: 'pointer', fontSize: 13 }}>

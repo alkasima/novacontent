@@ -13,6 +13,10 @@ Thumbs.db
 *.log
 logs/
 
+# Next.js
+.next/
+.next.broken-*/
+
 # IDE
 .vscode/
 .idea/
