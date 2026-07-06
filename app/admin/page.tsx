@@ -51,6 +51,48 @@ const card: React.CSSProperties = { background: '#0e0e12', border: '1px solid #1
 const input: React.CSSProperties = { width: '100%', padding: '11px 14px', borderRadius: 12, background: '#16161c', border: '1px solid #2a2a38', color: '#f0f0f5', fontSize: 14, boxSizing: 'border-box' };
 const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: '#9090a8', marginBottom: 6, display: 'block' };
 
+
+const SK_CSS = `
+@keyframes shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}
+.sk{background:linear-gradient(90deg,#16161c 25%,#1e1e28 50%,#16161c 75%);background-size:600px 100%;animation:shimmer 1.6s ease-in-out infinite;border-radius:10px}
+`;
+
+function Sk({ w = '100%', h = 16, r = 10, mb = 0 }: { w?: string|number; h?: number; r?: number; mb?: number }) {
+  return <div className="sk" style={{ width: w, height: h, borderRadius: r, marginBottom: mb, flexShrink: 0 }} />;
+}
+
+function ProviderRowSkeleton() {
+  return (
+    <div style={{ background: '#0e0e12', border: '1px solid #1f1f28', borderRadius: 16, padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+          <Sk w={120} h={16} r={8} />
+          <Sk w={60} h={16} r={100} />
+        </div>
+        <Sk w={220} h={13} r={6} />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Sk w={90} h={36} r={10} />
+        <Sk w={70} h={36} r={10} />
+        <Sk w={64} h={36} r={10} />
+      </div>
+    </div>
+  );
+}
+
+function FullPageSpinner() {
+  return (
+    <div style={{ background: '#060608', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style>{SK_CSS}</style>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: 48, height: 48, border: '3px solid #1f1f28', borderTop: '3px solid #c8f53d', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+        <div style={{ color: '#5a5a72', fontSize: 14 }}>Checking access…</div>
+      </div>
+      <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [client, setClient] = useState<any>(null);
@@ -179,19 +221,14 @@ export default function AdminPage() {
   };
 
   if (!authChecked) {
-    return (
+    return error ? (
       <div style={{ background: '#060608', color: '#9090a8', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        {error ? (
-          <>
-            <div style={{ color: '#ff7a7a', fontSize: 14 }}>{error}</div>
-            <button onClick={() => router.push('/app')} style={{ padding: '10px 22px', borderRadius: 100, background: '#c8f53d', color: '#000', border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>Back to app</button>
-          </>
-        ) : (
-          <div>Loading…</div>
-        )}
+        <div style={{ color: '#ff7a7a', fontSize: 14 }}>{error}</div>
+        <button onClick={() => router.push('/app')} style={{ padding: '10px 22px', borderRadius: 100, background: '#c8f53d', color: '#000', border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>Back to app</button>
       </div>
-    );
+    ) : <FullPageSpinner />;
   }
+
 
   if (!allowed) {
     return (
@@ -280,7 +317,10 @@ export default function AdminPage() {
         {/* List */}
         <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 16 }}>Configured providers</div>
         {loading ? (
-          <div style={{ color: '#9090a8' }}>Loading…</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <style>{SK_CSS}</style>
+            {[0, 1, 2].map(i => <ProviderRowSkeleton key={i} />)}
+          </div>
         ) : providers.length === 0 ? (
           <div style={{ ...card, textAlign: 'center', color: '#9090a8' }}>No providers yet. Add one above.</div>
         ) : (

@@ -4,6 +4,11 @@ const fs = require('fs');
 const os = require('os');
 const config = require('./config');
 
+// Path to optional YouTube cookies file (Netscape format).
+// Export from Chrome/Edge using the "Get cookies.txt LOCALLY" extension,
+// then place the file at the project root as cookies.txt
+const COOKIES_FILE = path.join(__dirname, '..', 'cookies.txt');
+
 const MAX_TRANSCRIPT_CHARS = 6000;
 const AUDIO_MAX_FILESIZE = '24M';
 const AUDIO_DOWNLOAD_TIMEOUT = 180000;
@@ -154,18 +159,54 @@ async function extractAll(url) {
   let output = '';
   let jsonData = null;
 
-  try {
+  // Build command attempts in priority order:
+  // 1. With subtitles + Chrome cookies
+  // 2. With subtitles + Edge cookies
+  // 3. With subtitles, no cookies
+  // 4. No subtitles + Chrome cookies
+  // 5. No subtitles + Edge cookies
+  // 6. No subtitles, no cookies (last resort)
+  async function tryExtract(extraFlags = '') {
+    const baseArgs = `${quoteShell(url)} --dump-json --skip-download -o ${quoteShell(outPath)} --no-warnings ${extraFlags}`;
+    const withSubs = `${ytdlp} ${baseArgs} --write-subs --write-auto-subs --sub-langs en,-live_chat`;
+    const noSubs   = `${ytdlp} ${baseArgs}`;
     try {
-      const cmd = `${ytdlp} ${quoteShell(url)} --dump-json --write-subs --write-auto-subs --sub-langs en,-live_chat --skip-download -o ${quoteShell(outPath)} --no-warnings`;
-      output = await execPromise(cmd);
-    } catch (err) {
-      // Retry without subtitles
+      return await execPromise(withSubs);
+    } catch {
+      return await execPromise(noSubs);
+    }
+  }
+
+  try {
+    // Build cookie flag attempts in priority order.
+    // cookies.txt (exported via browser extension) is most reliable on Windows
+    // because --cookies-from-browser fails due to Chromium DPAPI encryption.
+    const hasCookieFile = fs.existsSync(COOKIES_FILE);
+    const cookieAttempts = [
+      ...(hasCookieFile ? [`--cookies ${quoteShell(COOKIES_FILE)}`] : []),
+      '--cookies-from-browser chrome',
+      '--cookies-from-browser edge',
+      '', // last resort: no cookies
+    ];
+
+    let lastErr;
+    for (const cookieFlag of cookieAttempts) {
       try {
-        const cmd2 = `${ytdlp} ${quoteShell(url)} --dump-json --skip-download -o ${quoteShell(outPath)} --no-warnings`;
-        output = await execPromise(cmd2);
-      } catch (err2) {
-        throw new Error('Failed to extract video: ' + (err2.message || err.message));
+        output = await tryExtract(cookieFlag);
+        lastErr = null;
+        break;
+      } catch (err) {
+        lastErr = err;
+        // Only continue if the error looks like a bot/auth block
+        const msg = (err.message || '').toLowerCase();
+        if (!msg.includes('sign in') && !msg.includes('bot') && !msg.includes('confirm') && !msg.includes('cookies') && !msg.includes('dpapi')) {
+          break; // Non-auth error — no point retrying with different cookies
+        }
       }
+    }
+
+    if (lastErr) {
+      throw new Error('Failed to extract video: ' + (lastErr.message || lastErr));
     }
 
     // Parse JSON from output (yt-dlp dumps JSON as last non-empty line)

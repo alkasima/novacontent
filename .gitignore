@@ -25,3 +25,6 @@ logs/
 tmp/
 temp/
 *.tmp
+
+# YouTube cookies (sensitive — never commit)
+cookies.txt

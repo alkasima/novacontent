@@ -1,115 +1,95 @@
-# ContentForge — Video Repurposer (SaaS)
+# ContentForge (PostMint) — Video Repurposer SaaS
 
-Turn YouTube & TikTok videos into original social media posts.
+Turn YouTube & TikTok videos into original social media posts using AI.
 
-## Quick Start (Local)
+## Quick Start (Render — 1-Click Deploy)
 
-1. `npm install`
-2. Copy `.env.example` to `.env` and fill in your Supabase + Stripe keys
-3. Run the SQL in `supabase-schema.sql` in your Supabase SQL Editor
-4. `npm start`
-5. Open `http://localhost:3001`
+### Option A: Deploy via Render Blueprint (auto)
 
-## Environment Variables
+1. Push this repo to GitHub
+2. In [Render Dashboard](https://dashboard.render.com) → **New +** → **Blueprint**
+3. Connect your GitHub repo
+4. Render reads `render.yaml` — fill in the secret env vars in the UI
+5. Click **Apply**
 
-| Key | Source |
-|-----|--------|
-| `SUPABASE_URL` | Supabase Project Settings > API |
-| `SUPABASE_SERVICE_KEY` | Supabase Project Settings > API (service_role) |
-| `SUPABASE_ANON_KEY` | Supabase Project Settings > API (anon/public) |
-| `STRIPE_SECRET_KEY` | Stripe Dashboard > Developers > API Keys |
-| `STRIPE_PUBLISHABLE_KEY` | Stripe Dashboard > Developers > API Keys |
-| `STRIPE_WEBHOOK_SECRET` | Stripe CLI or Dashboard webhook endpoint |
-| `STRIPE_PRICE_ID_PRO` | Stripe Dashboard > Products > Pro Price ID |
-| `STRIPE_PRICE_ID_AGENCY` | Stripe Dashboard > Products > Agency Price ID |
+### Option B: Deploy via Docker (manual)
+
+1. Push to GitHub
+2. Render → **New +** → **Web Service**
+3. Connect repo → select **Docker** runtime (Render detects `Dockerfile`)
+4. Set these environment variables in the Render dashboard:
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `SUPABASE_URL` | ✅ | Supabase Project URL |
+| `SUPABASE_ANON_KEY` | ✅ | Supabase anon/public key |
+| `SUPABASE_SERVICE_KEY` | ✅ | Supabase service_role key |
+
+### After Deploy
+
+1. **Set up your database** — Run `supabase-schema.sql` in your Supabase SQL Editor
+2. **Make yourself superadmin** — In SQL Editor, run:
+   ```sql
+   update profiles set is_superadmin = true
+   where id = (select id from auth.users where email = 'your@email.com');
+   ```
+3. **Configure an AI provider** — Sign in → visit `/admin` → add your API key (OpenAI, Anthropic, Gemini, or OpenRouter)
+
+---
 
 ## Features
 
-- Auth (email/password via Supabase)
-- Cloud history, scheduled posts, brand voice
-- Usage limits (Free / Pro / Agency)
-- Stripe billing (checkout + customer portal)
-- 7 platforms: X, Facebook, LinkedIn, Instagram, TikTok, Threads, YouTube Shorts
-- 8 languages, brand voice, content calendar, batch mode, export
+- 🎥 **Video Repurposing** — Paste any YouTube/TikTok URL, AI extracts the core idea
+- 📝 **Text Repurposing** — Paste blog posts, articles, or notes
+- 🎯 **7 Platforms** — X/Twitter, LinkedIn, Instagram, Facebook, TikTok, Threads, YouTube Shorts
+- 🎨 **Brand Voice Cloning** — Train AI on your writing style
+- 📦 **Batch Mode** — Process multiple URLs at once
+- 🖼️ **AI Image Generation** — Scroll-stopping visuals per platform
+- 📅 **Content Calendar** — Schedule posts with a visual calendar
+- 🌍 **8 Languages** — English, Spanish, French, Portuguese, Arabic, Hindi, German, Pidgin English
+- 💾 **Cloud History** — Auto-save all generations
+- 🔐 **Auth** — Email/password + Google/GitHub OAuth via Supabase
 
-## Deploy
+## Tech Stack
 
-Set `NODE_ENV=production` and `APP_URL` to your domain.
+- **Next.js 15** (App Router)
+- **Supabase** (Auth + Database)
+- **Stripe** (Billing)
+- **yt-dlp** (Video extraction)
+- **Groq** (AI inference for transcription)
+- **External AI APIs** (OpenAI, Anthropic, Gemini, OpenRouter)
 
-## Prerequisites
-
-1. **Node.js** (v14+) - https://nodejs.org
-2. **yt-dlp** - Video extraction tool
-
-### Install yt-dlp
-
-**Windows (PowerShell):**
-```powershell
-pip install yt-dlp
-```
-Or download from: https://github.com/yt-dlp/yt-dlp/releases
-
-**Mac:**
-```bash
-brew install yt-dlp
-```
-
-**Linux:**
-```bash
-sudo apt install yt-dlp
-```
-
-## Setup
+## Local Development
 
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Start the server (Terminal 1)
-npm start
-
-# 3. Open the app (Terminal 2 or browser)
-# Open http://localhost:3001/index.html
+cp .env.example .env   # fill in your keys
+npm run dev
 ```
 
-## Usage
-
-1. Enter your Groq API key (free at https://console.groq.com/keys)
-2. Paste a YouTube or TikTok URL
-3. Click "Generate Posts"
-4. The app will:
-   - Fetch video title, creator, description
-   - Extract subtitles/transcript (if available)
-   - Generate original social posts using AI
-5. Copy, edit, save, or export your posts
-
-## Project Structure
+## File Structure
 
 ```
-NovaContent/
-├── index.html          # Main app UI
-├── css/styles.css      # Styling
-├── js/app.js           # Frontend logic
+├── app/                    # Next.js App Router pages + API routes
+│   ├── api/
+│   │   ├── extract/        # Video extraction (yt-dlp)
+│   │   ├── generate/       # AI post generation
+│   │   ├── voice/clone/    # Brand voice cloning
+│   │   ├── billing/        # Stripe subscriptions
+│   │   ├── admin/          # Superadmin provider management
+│   │   └── ...
+│   ├── dashboard/          # Main dashboard
+│   ├── admin/              # AI providers admin
+│   ├── login/              # Auth page
+│   └── page.tsx            # Landing page
+├── lib/
+│   ├── ai.ts               # AI provider clients (Anthropic, OpenAI, Gemini, OpenRouter)
+│   ├── auth.ts             # Auth helpers
+│   ├── supabase.ts         # Supabase client
+│   └── config.ts           # Env config
 ├── server/
-│   ├── index.js        # Express server
-│   └── extract.js      # yt-dlp wrapper
-├── package.json
-└── README.md
+│   └── extract.js          # yt-dlp wrapper (video download + transcription)
+├── render.yaml             # Render Blueprint config
+├── Dockerfile              # Docker deployment
+└── supabase-schema.sql     # Database schema
 ```
-
-## API Keys Needed
-
-- **Groq API** (free, no credit card): https://console.groq.com/keys
-
-## Troubleshooting
-
-**"yt-dlp is not recognized":**
-- Add yt-dlp to your system PATH, or use full path in extract.js
-
-**"Failed to extract video":**
-- Make sure yt-dlp is installed: `yt-dlp --version`
-- Some TikTok videos may not have captions available
-
-**Server won't start:**
-- Check if port 3001 is available
-- Run: `node server/index.js` for detailed error

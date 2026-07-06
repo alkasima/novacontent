@@ -4,6 +4,86 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+const SKELETON_CSS = `
+@keyframes shimmer {
+  0% { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.sk {
+  background: linear-gradient(90deg, #16161c 25%, #1e1e28 50%, #16161c 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 10px;
+}
+`;
+
+function Sk({ w = '100%', h = 16, r = 10, style = {} }: { w?: string | number; h?: number; r?: number; style?: React.CSSProperties }) {
+  return <div className="sk" style={{ width: w, height: h, borderRadius: r, flexShrink: 0, ...style }} />;
+}
+
+function DashboardSkeleton() {
+  return (
+    <>
+      <style>{SKELETON_CSS}</style>
+      {/* Title */}
+      <div style={{ marginBottom: 32 }}>
+        <Sk w={280} h={36} r={12} style={{ marginBottom: 12 }} />
+        <Sk w={180} h={16} />
+      </div>
+
+      {/* 3 stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 32 }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{ background: '#0e0e12', border: '1px solid #1f1f28', borderRadius: 20, padding: 28 }}>
+            <Sk w={60} h={11} r={6} style={{ marginBottom: 14 }} />
+            <Sk w={90} h={30} r={10} style={{ marginBottom: 12 }} />
+            <Sk w={130} h={13} />
+          </div>
+        ))}
+      </div>
+
+      {/* Usage bar */}
+      <div style={{ background: '#0e0e12', border: '1px solid #1f1f28', borderRadius: 20, padding: 28, marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+          <Sk w={120} h={16} />
+          <Sk w={60} h={16} />
+        </div>
+        <Sk w="100%" h={8} r={8} style={{ marginBottom: 12 }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Sk w={70} h={12} />
+          <Sk w={90} h={12} />
+        </div>
+      </div>
+
+      {/* CTA banner */}
+      <div style={{ background: '#0e0e12', border: '1px solid #1f1f28', borderRadius: 24, padding: 48, textAlign: 'center', marginBottom: 32 }}>
+        <Sk w={64} h={48} r={16} style={{ margin: '0 auto 20px' }} />
+        <Sk w={220} h={28} r={10} style={{ margin: '0 auto 12px' }} />
+        <Sk w={340} h={16} r={8} style={{ margin: '0 auto 8px' }} />
+        <Sk w={260} h={16} r={8} style={{ margin: '0 auto 28px' }} />
+        <Sk w={160} h={44} r={100} style={{ margin: '0 auto' }} />
+      </div>
+
+      {/* Recent history rows */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Sk w={160} h={20} />
+        <Sk w={70} h={16} />
+      </div>
+      {[0, 1, 2].map(i => (
+        <div key={i} style={{ background: '#0e0e12', border: '1px solid #1f1f28', borderRadius: 16, padding: 20, marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Sk w={200} h={14} />
+            <Sk w={80} h={12} />
+          </div>
+          <Sk w={140} h={12} />
+        </div>
+      ))}
+    </>
+  );
+}
+
+
+
 function getAPIBase() {
   return window.location.origin;
 }
@@ -127,7 +207,7 @@ export default function DashboardHome() {
 
       <main style={{ flex: 1, padding: 40, overflow: 'auto' }}>
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#9090a8' }}>Loading...</div>
+          <DashboardSkeleton />
         ) : (
           <>
             <div style={{ marginBottom: 32 }}>

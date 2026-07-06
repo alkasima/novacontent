@@ -1,0 +1,44 @@
+services:
+  # ────────────────────────────────────────────────────
+  # ContentForge (PostMint) — Next.js + yt-dlp
+  # ────────────────────────────────────────────────────
+  - type: web
+    name: contentforge
+    env: node
+    region: oregon
+    plan: free                                    # Free tier: spins down after 15 min idle
+    healthCheckPath: /
+    buildCommand: >
+      npm install &&
+      (python3 --version && pip3 install yt-dlp 2>/dev/null || echo 'yt-dlp skipped — extract feature limited') &&
+      npm run build
+    startCommand: next start -p $PORT -H 0.0.0.0
+
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: APP_URL
+        value: https://contentforge.onrender.com    # CHANGE ME after first deploy
+      # ── Secrets — set these in the Render dashboard ──
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID_PRO
+        sync: false
+      - key: STRIPE_PRICE_ID_AGENCY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false

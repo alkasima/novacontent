@@ -6,6 +6,58 @@ import Link from 'next/link';
 
 const spinnerKeyframes = `
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+.toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  background: rgba(14, 14, 18, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(200, 245, 61, 0.2);
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #f0f0f5;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  max-width: 380px;
+  overflow: hidden;
+}
+.toast-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: #c8f53d;
+  animation: progress 2s linear forwards;
+}
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column !important;
+  }
+  .app-sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid #1f1f28 !important;
+    box-sizing: border-box;
+  }
+  .app-main {
+    padding: 20px !important;
+  }
+  .grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+}
 `;
 
 const PLATS: Record<string, { name: string; max: number; icon: string }> = {
@@ -80,6 +132,8 @@ export default function DashboardPage() {
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<string | null>(null);
   const [generatingImage, setGeneratingImage] = useState<string>('');
   const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({});
+  const [regeneratingId, setRegeneratingId] = useState<string>('');
+  const [humanizingId, setHumanizingId] = useState<string>('');
 
   // --- Batch state ---
   const [batchUrls, setBatchUrls] = useState('');
@@ -286,6 +340,50 @@ Content to repurpose:\n${ideaText}`;
   };
 
   const extractIdeaFromSource = async () => {
+    // In "Paste Text" mode, use textInput directly — no URL extraction needed
+    if (source === 'text') {
+      if (!textInput.trim()) { setError('Please paste some text first'); return ''; }
+      setGenerating(true);
+      setError('');
+      try {
+        const prompt = `You are an expert content strategist. Read the following text and extract the single most powerful, original insight or argument the author is making.
+
+Write it as 2-3 punchy sentences that capture the core idea, the supporting evidence or result, and the takeaway for the reader. Sound like a human thought leader — not a bullet point summary. Do NOT use phrases like "the author says" or "this content is about". Write in active voice.
+
+Text:
+${textInput}`;
+        const idea = await callGroq(prompt, apiKey);
+        setExtractedIdea(idea);
+        return idea;
+      } catch (e: any) {
+        setError(e.message || 'Extraction failed');
+        return '';
+      } finally { setGenerating(false); }
+    }
+
+    // URL mode — but first check if the "url" field actually contains plain text
+    const looksLikeUrl = url.trim().startsWith('http://') || url.trim().startsWith('https://');
+    if (!looksLikeUrl && url.trim().length > 0) {
+      // User pasted plain text into the URL field — treat it as text content directly
+      setGenerating(true);
+      setError('');
+      try {
+        const contentToUse = url.trim();
+        const prompt = `You are an expert content strategist. Read the following text and extract the single most powerful, original insight or argument the author is making.
+
+Write it as 2-3 punchy sentences that capture the core idea, the supporting evidence or result, and the takeaway for the reader. Sound like a human thought leader — not a bullet point summary. Do NOT use phrases like "the author says" or "this content is about". Write in active voice.
+
+Text:
+${contentToUse}`;
+        const idea = await callGroq(prompt, apiKey);
+        setExtractedIdea(idea);
+        return idea;
+      } catch (e: any) {
+        setError(e.message || 'Extraction failed');
+        return '';
+      } finally { setGenerating(false); }
+    }
+
     if (!url && !transcriptInput) { setError('Please enter a URL or paste a transcript'); return ''; }
     setGenerating(true);
     setError('');
@@ -322,7 +420,12 @@ Content to repurpose:\n${ideaText}`;
         }
       }
       const contentToUse = text || url;
-      const prompt = `Extract the single most compelling core idea from this content. Write it as one concise, tweetable insight (under 280 characters).\n\n${contentToUse}`;
+      const prompt = `You are an expert content strategist. Read the following video transcript or description and extract the single most powerful, original insight or argument being made.
+
+Write it as 2-3 punchy sentences that capture the core idea, the supporting evidence or result, and the takeaway for the reader. Sound like a human thought leader — not a bullet point summary. Do NOT use phrases like "the speaker says" or "this video is about". Write in active voice.
+
+Content:
+${contentToUse}`;
       const idea = await callGroq(prompt, apiKey);
       setExtractedIdea(idea);
       return idea;
@@ -335,8 +438,15 @@ Content to repurpose:\n${ideaText}`;
 
   const generatePosts = async () => {
     console.log('[Generate] clicked');
-    let ideaText = source === 'url' ? (extractedIdea || transcriptInput) : textInput;
-    if (source === 'url' && !ideaText && url) {
+
+    // If user pasted plain text into the URL field, treat it as text content
+    const urlIsPlainText = source === 'url' && url.trim() && !url.trim().startsWith('http://') && !url.trim().startsWith('https://');
+
+    let ideaText = urlIsPlainText
+      ? (extractedIdea || url.trim())
+      : source === 'url' ? (extractedIdea || transcriptInput) : textInput;
+
+    if (source === 'url' && !ideaText && url && !urlIsPlainText) {
       try {
         ideaText = await extractIdeaFromSource();
       } catch (e: any) {
@@ -397,6 +507,56 @@ Content to repurpose:\n${ideaText}`;
       }
     } catch (err: any) { setError(err.message || 'Generation failed'); }
     finally { setGenerating(false); }
+  };
+
+  const regenerateSingle = async (plat: string, index: number, ideaText: string) => {
+    const key = `${plat}-${index}`;
+    setRegeneratingId(key);
+    try {
+      const prompt = buildPrompt(ideaText, plat) + `\n\nThis is variation ${index + 1} — make it feel distinct from a previous attempt. Try a different angle, hook, or structure.`;
+      const newText = await callGroq(prompt, apiKey);
+      updatePostText(plat, index, newText);
+    } catch (e: any) {
+      setSettingsMsg('Regenerate failed: ' + (e.message || 'Unknown error'));
+      setTimeout(() => setSettingsMsg(''), 3000);
+    } finally {
+      setRegeneratingId('');
+    }
+  };
+
+  const humanizePost = async (plat: string, index: number, currentText: string) => {
+    const key = `${plat}-${index}`;
+    setHumanizingId(key);
+    try {
+      const prompt = `Rewrite the following social media post to sound more natural, conversational, and human. 
+Remove any phrases that sound AI-generated (like "delve", "game-changer", "it's worth noting", "in today's world", "unleash", "elevate", etc.).
+Keep the same core idea and length. Sound like a real person talking — casual but sharp. No emojis unless they were already there.
+Do NOT add an introduction or explanation — just output the rewritten post directly.
+
+Original post:
+${currentText}`;
+      const newText = await callGroq(prompt, apiKey);
+      updatePostText(plat, index, newText);
+      setSettingsMsg('✨ Post humanized!');
+      setTimeout(() => setSettingsMsg(''), 2000);
+    } catch (e: any) {
+      setSettingsMsg('Humanize failed: ' + (e.message || 'Unknown error'));
+      setTimeout(() => setSettingsMsg(''), 3000);
+    } finally {
+      setHumanizingId('');
+    }
+  };
+
+  const updatePostText = (plat: string, index: number, newText: string) => {
+    setPosts(prev => {
+      const next = { ...prev };
+      if (next[plat]) {
+        const arr = [...next[plat]];
+        arr[index] = newText;
+        next[plat] = arr;
+      }
+      return next;
+    });
   };
 
   const saveToHistory = async () => {
@@ -486,11 +646,25 @@ Content to repurpose:\n${ideaText}`;
     setScheduleOpen(true);
   };
 
-  const generateImage = async (prompt: string, key: string) => {
+  const generateImage = async (prompt: string, key: string, plat?: string) => {
     setGeneratingImage(key);
     try {
-      const encoded = encodeURIComponent(prompt);
-      const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&seed=${Date.now()}`;
+      let visualPrompt = `social media graphic, abstract modern technology design`;
+      try {
+        const aiPrompt = await callGroq(`Based on the following social media post, generate a short, highly-descriptive image prompt for an AI image generator. Describe a visual scene or graphic design that represents the topic. Do NOT write any text/words in the image. Write ONLY the image prompt (max 100 characters). Don't include introduction or explanations.\n\nPost:\n${prompt}`);
+        if (aiPrompt && aiPrompt.length < 200) {
+          visualPrompt = aiPrompt.replace(/[".:]/g, '').trim();
+        }
+      } catch (e) {
+        console.warn('AI visual prompt failed, using fallback:', e);
+        visualPrompt = `social media visual for: ${prompt.slice(0, 100)}`;
+      }
+
+      const encoded = encodeURIComponent(visualPrompt);
+      // Use 9:16 portrait ratio for vertical video platforms (YouTube Shorts, TikTok)
+      const isVertical = plat === 'yt' || plat === 'tt';
+      const [w, h] = isVertical ? [576, 1024] : [1024, 1024];
+      const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=${w}&height=${h}&nologo=true&seed=${Date.now()}`;
       setGeneratedImages(prev => ({ ...prev, [key]: imageUrl }));
     } finally {
       setGeneratingImage('');
@@ -525,7 +699,6 @@ Content to repurpose:\n${ideaText}`;
 
   const runBatch = async () => {
     if (!batchUrls) { setBatchError('Please enter at least one URL'); return; }
-    if (!batchApiKey) { setBatchError('Please enter your Groq API key'); return; }
     if (batchPlats.length === 0) { setBatchError('Select at least one platform'); return; }
 
     setBatchGenerating(true);
@@ -773,8 +946,8 @@ Content to repurpose:\n${ideaText}`;
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#060608', color: '#f0f0f5', fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-      <aside style={{ width: 240, borderRight: '1px solid #1f1f28', padding: 24, display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+    <div className="app-layout" style={{ display: 'flex', minHeight: '100vh', background: '#060608', color: '#f0f0f5', fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+      <aside className="app-sidebar" style={{ width: 240, borderRight: '1px solid #1f1f28', padding: 24, display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
         <div style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 900, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ color: '#c8f53d' }}>●</span> PostMint
         </div>
@@ -811,10 +984,14 @@ Content to repurpose:\n${ideaText}`;
         </div>
       </aside>
 
-      <main style={{ flex: 1, padding: 40, overflow: 'auto' }}>
+      <main className="app-main" style={{ flex: 1, padding: 40, overflow: 'auto' }}>
         {settingsMsg && (
-          <div style={{ position: 'fixed', top: 20, right: 20, background: 'rgba(200,245,61,.1)', color: '#c8f53d', border: '1px solid rgba(200,245,61,.2)', borderRadius: 10, padding: '10px 18px', fontSize: 13, zIndex: 1000 }}>
-            {settingsMsg}
+          <div className="toast-container">
+            <span style={{ fontSize: 16 }}>
+              {settingsMsg.toLowerCase().includes('fail') || settingsMsg.toLowerCase().includes('not configured') || settingsMsg.toLowerCase().includes('error') ? '⚠️' : '✨'}
+            </span>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{settingsMsg}</div>
+            <div className="toast-bar" />
           </div>
         )}
 
@@ -937,7 +1114,7 @@ Content to repurpose:\n${ideaText}`;
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#9090a8', marginBottom: 10, textTransform: 'uppercase' }}>Custom CTA (optional)</div>
                   <input type="text" value={cta} onChange={e => setCta(e.target.value)} placeholder="e.g. Follow me for daily tips..." style={{ width: '100%', maxWidth: 500, background: '#16161c', border: '1px solid #1f1f28', borderRadius: 12, padding: '12px 14px', color: '#f0f0f5', fontSize: 14, outline: 'none' }} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: '#9090a8', marginBottom: 10, textTransform: 'uppercase' }}>Post Length</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1020,6 +1197,37 @@ Content to repurpose:\n${ideaText}`;
                                   {justCopied ? 'Copied!' : '📋 Copy'}
                                 </button>
                                 <button
+                                  onClick={() => regenerateSingle(plat, i, extractedIdea || transcriptInput || textInput || url)}
+                                  disabled={regeneratingId === copyKey}
+                                  title="Regenerate this variation"
+                                  style={{
+                                    padding: '6px 14px', borderRadius: 8, border: '1px solid #1f1f28',
+                                    background: regeneratingId === copyKey ? 'rgba(200,245,61,.08)' : '#16161c',
+                                    color: regeneratingId === copyKey ? '#c8f53d' : '#9090a8',
+                                    cursor: regeneratingId === copyKey ? 'not-allowed' : 'pointer',
+                                    fontSize: 12, fontWeight: 600, transition: 'all .2s',
+                                    opacity: regeneratingId === copyKey ? 0.7 : 1,
+                                  }}
+                                >
+                                  {regeneratingId === copyKey ? '⏳ Rewriting...' : '🔄 Regenerate'}
+                                </button>
+                                <button
+                                  onClick={() => humanizePost(plat, i, text)}
+                                  disabled={humanizingId === copyKey}
+                                  title="Make this post sound more human"
+                                  style={{
+                                    padding: '6px 14px', borderRadius: 8,
+                                    border: '1px solid rgba(96,165,250,.3)',
+                                    background: humanizingId === copyKey ? 'rgba(96,165,250,.1)' : 'transparent',
+                                    color: humanizingId === copyKey ? '#60a5fa' : '#60a5fa',
+                                    cursor: humanizingId === copyKey ? 'not-allowed' : 'pointer',
+                                    fontSize: 12, fontWeight: 600, transition: 'all .2s',
+                                    opacity: humanizingId === copyKey ? 0.7 : 1,
+                                  }}
+                                >
+                                  {humanizingId === copyKey ? '⏳ Humanizing...' : '🧠 Humanize'}
+                                </button>
+                                <button
                                   onClick={() => setPreviewId(previewId === copyKey ? '' : copyKey)}
                                   style={{
                                     padding: '6px 14px', borderRadius: 8, border: '1px solid #1f1f28',
@@ -1042,9 +1250,9 @@ Content to repurpose:\n${ideaText}`;
                                 >
                                   📅 Schedule
                                 </button>
-                                {(plat === 'ig' || plat === 'tt') && (
+                                {(plat === 'ig' || plat === 'tt' || plat === 'yt') && (
                                   <button
-                                    onClick={() => generateImage(text, copyKey)}
+                                    onClick={() => generateImage(text, copyKey, plat)}
                                     disabled={generatingImage === copyKey}
                                     style={{
                                       padding: '6px 14px', borderRadius: 8, border: '1px solid #1f1f28',
@@ -1060,12 +1268,37 @@ Content to repurpose:\n${ideaText}`;
                                 )}
                               </div>
                             </div>
-                            <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.6, background: '#16161c', borderRadius: 12, padding: '14px 16px', border: '1px solid #1f1f28' }}>{text}</div>
+                            <textarea
+                              value={text}
+                              onChange={e => updatePostText(plat, i, e.target.value)}
+                              rows={Math.max(3, text.split('\n').length + 1)}
+                              style={{
+                                width: '100%',
+                                whiteSpace: 'pre-wrap',
+                                fontSize: 14,
+                                lineHeight: 1.6,
+                                background: '#16161c',
+                                borderRadius: 12,
+                                padding: '14px 16px',
+                                border: '1px solid #1f1f28',
+                                color: '#f0f0f5',
+                                outline: 'none',
+                                resize: 'vertical',
+                                fontFamily: 'inherit',
+                                marginBottom: 8,
+                              }}
+                            />
                             {generatedImages[copyKey] && (
                               <div style={{ marginTop: 12 }}>
-                                <img src={generatedImages[copyKey]} alt="Generated" style={{ width: '100%', maxWidth: 400, borderRadius: 12, border: '1px solid #1f1f28' }} />
+                                <img
+                                  src={generatedImages[copyKey]}
+                                  alt="Generated"
+                                  onError={() => setGeneratedImages(prev => { const next = { ...prev }; delete next[copyKey]; return next; })}
+                                  style={{ width: '100%', maxWidth: (plat === 'yt' || plat === 'tt') ? 220 : 400, borderRadius: 12, border: '1px solid #1f1f28', display: 'block' }}
+                                />
                                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                                   <button onClick={() => navigator.clipboard.writeText(generatedImages[copyKey])} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #1f1f28', background: '#16161c', color: '#9090a8', cursor: 'pointer', fontSize: 12 }}>📋 Copy Image URL</button>
+                                  <a href={generatedImages[copyKey]} download={`postmint-image-${copyKey}.jpg`} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #1f1f28', background: '#16161c', color: '#9090a8', cursor: 'pointer', fontSize: 12, textDecoration: 'none' }}>⬇️ Download</a>
                                   <button onClick={() => setGeneratedImages(prev => { const next = { ...prev }; delete next[copyKey]; return next; })} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #ff6b6b', background: 'transparent', color: '#ff6b6b', cursor: 'pointer', fontSize: 12 }}>🗑 Remove</button>
                                 </div>
                               </div>
@@ -1092,11 +1325,6 @@ Content to repurpose:\n${ideaText}`;
             <h1 style={{ fontSize: 36, fontWeight: 800, marginBottom: 8, lineHeight: 1.1 }}>Process Multiple<br />Videos at Once</h1>
             <p style={{ color: '#9090a8', marginBottom: 32 }}>Paste up to 10 URLs — generate posts for all of them in one click.</p>
 
-            {card('Groq API Key', (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input type="password" value={batchApiKey} onChange={e => setBatchApiKey(e.target.value)} placeholder="gsk_..." style={{ flex: 1, background: '#16161c', border: '1px solid #1f1f28', borderRadius: 12, padding: '12px 14px', color: '#f0f0f5', fontSize: 14, outline: 'none' }} />
-              </div>
-            ))}
 
             {card(<>YouTube / TikTok URLs <span style={{ fontSize: 10, fontWeight: 700, color: '#5a5a72', background: '#16161c', padding: '3px 8px', borderRadius: 6 }}>One per line</span></>, (
               <>
@@ -1386,11 +1614,11 @@ Content to repurpose:\n${ideaText}`;
 
       {/* Schedule Modal */}
       {scheduleOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => setScheduleOpen(false)}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => { setScheduleOpen(false); setError(''); }}>
           <div style={{ background: '#0e0e12', border: '1px solid #1f1f28', borderRadius: 24, padding: 32, width: '100%', maxWidth: 460 }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ fontSize: 18, fontWeight: 700 }}>Schedule Post</div>
-              <button onClick={() => setScheduleOpen(false)} style={{ background: 'none', border: 'none', color: '#9090a8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+              <button onClick={() => { setScheduleOpen(false); setError(''); }} style={{ background: 'none', border: 'none', color: '#9090a8', cursor: 'pointer', fontSize: 18 }}>✕</button>
             </div>
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: '#9090a8', marginBottom: 6, textTransform: 'uppercase' }}>Post Preview</div>
@@ -1415,6 +1643,7 @@ Content to repurpose:\n${ideaText}`;
                 ))}
               </div>
             </div>
+            {error && <div style={{ background: 'rgba(255,107,107,.1)', color: '#ff6b6b', border: '1px solid rgba(255,107,107,.2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, marginBottom: 16 }}>{error}</div>}
             <button
               disabled={scheduling}
               onClick={async () => {
