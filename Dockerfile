@@ -2,7 +2,7 @@
 FROM node:22-alpine AS builder
 
 RUN apk add --no-cache python3 py3-pip ffmpeg
-RUN pip3 install --break-system-packages yt-dlp --quiet
+RUN python3 -m pip install --no-cache-dir yt-dlp --quiet
 
 WORKDIR /app
 COPY package*.json ./
@@ -14,8 +14,8 @@ RUN npm run build
 FROM node:22-alpine
 
 # Only ffmpeg + yt-dlp needed at runtime
-RUN apk add --no-cache python3 ffmpeg && \
-    pip3 install --break-system-packages yt-dlp --quiet && \
+RUN apk add --no-cache python3 py3-pip ffmpeg && \
+    python3 -m pip install --no-cache-dir yt-dlp --quiet && \
     rm -rf /root/.cache /tmp/*
 
 WORKDIR /app
